@@ -504,6 +504,8 @@ def create_model(bert_config, is_training, input_ids, input_mask, segment_ids,
   # instead.
   output_layer = model.get_pooled_output()
 
+  sequence_output = model.get_sequence_output()
+
   hidden_size = output_layer.shape[-1].value
 
   output_weights = tf.get_variable(
@@ -536,7 +538,7 @@ def create_model(bert_config, is_training, input_ids, input_mask, segment_ids,
 
     loss = tf.reduce_mean(per_example_loss)
 
-    return (output_layer,loss, per_example_loss, logits, probabilities)
+    return (sequence_output,output_layer,loss, per_example_loss, logits, probabilities)
 
 
 def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate,
@@ -563,7 +565,7 @@ def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate,
 
     is_training = (mode == tf.estimator.ModeKeys.TRAIN)
 
-    (output_layer,total_loss, per_example_loss, logits, probabilities) = create_model(
+    (sequence_output,output_layer,total_loss, per_example_loss, logits, probabilities) = create_model(
         bert_config, is_training, input_ids, input_mask, segment_ids, label_ids,
         num_labels, use_one_hot_embeddings)
 
@@ -797,24 +799,75 @@ def test():
     tokenizer = tokenization.FullTokenizer(
         vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
     label_list = ['0','1']
-    text_a = '我在工作'
-    example = InputExample(guid='guid', text_a=text_a, label='0')
-    feature = convert_single_example(0, example, label_list, max_seq_length, tokenizer)
+    tf.reset_default_graph()
     input_ids = tf.placeholder(tf.int32,shape = [None,max_seq_length],name = 'input_ids')
     input_mask = tf.placeholder(tf.int32,shape = [None,max_seq_length],name = 'input_mask')
     segment_ids = tf.placeholder(tf.int32,shape = [None,max_seq_length],name = 'segment_ids')
     labels = tf.placeholder(tf.int32, shape=[None, ], name='labels')
-    output_layer,loss, per_example_loss, logits, probabilities = create_model(bert_config, False, input_ids, input_mask, segment_ids,labels, 2, False)
+    sequence_output,output_layer,loss, per_example_loss, logits, probabilities = create_model(bert_config, False, input_ids, input_mask, segment_ids,labels, 2, False)
     tvars = tf.trainable_variables()
     init_checkpoint = FLAGS.init_checkpoint
     (assignment_map, initialized_variable_names
      ) = modeling.get_assignment_map_from_checkpoint(tvars, init_checkpoint)
     tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
-    feed_dict = {input_ids:[feature.input_ids],segment_ids:[feature.segment_ids],input_mask:[feature.input_mask]}
-    with tf.Session() as sess:
-        sess.run(tf.global_variables_initializer())
-        tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
-        y = sess.run(output_layer,feed_dict=feed_dict)
+    sess = tf.Session()
+    sess.run(tf.global_variables_initializer())
+    text_a = "我真心是担心你啊，你为什么这么理解呢"
+    example = InputExample(guid='guid', text_a=text_a, label='0')
+    feature = convert_single_example(10, example, label_list, max_seq_length, tokenizer)
+    feed_dict = {input_ids: [feature.input_ids], segment_ids: [feature.segment_ids], input_mask: [feature.input_mask]}
+    y1 = sess.run(output_layer, feed_dict=feed_dict)
+
+    with open('/search/odin/guobk/vpa/vpa-studio-research/search/datapro/Docs/Docs-multiReplace.json','r') as f:
+        import json
+        S = json.load(f)
+    S = [s['content'] for s in S]
+    T = []
+    for i in range(len(S)):
+        if i%100==0:
+            print(i,len(S))
+        text_a = S[i]
+        example = InputExample(guid='guid', text_a=text_a, label='0')
+        feature = convert_single_example(10, example, label_list, max_seq_length, tokenizer)
+        feed_dict = {input_ids:[feature.input_ids],segment_ids:[feature.segment_ids],input_mask:[feature.input_mask]}
+        y = sess.run(output_layer, feed_dict=feed_dict)
+        T.append([S[i],y[0]])
+
+
+    Q = []
+    with open('/search/odin/guobk/vpa/vpa-studio-research/search/datapro/data/20201022_active.txt', 'r',encoding='utf-8') as f:
+        S = f.read().strip().split('\n')
+    for i in range(10000):
+        if i%100==0:
+            print(i,len(S))
+        text_a = S[i]
+        example = InputExample(guid='guid', text_a=text_a, label='0')
+        feature = convert_single_example(10, example, label_list, max_seq_length, tokenizer)
+        feed_dict = {input_ids:[feature.input_ids],segment_ids:[feature.segment_ids],input_mask:[feature.input_mask]}
+        y = sess.run(output_layer, feed_dict=feed_dict)
+        Q.append([S[i],y[0]])
+    V_T = [t[1] for t in T]
+    V_Q = [t[1] for t in Q]
+    import numpy as np
+    V_T = np.array(V_T)
+    V_Q = np.array(V_Q)
+    from sklearn import preprocessing
+    V_T = preprocessing.scale(V_T, axis=-1)
+    V_T = V_T / np.sqrt(len(V_T[0]))
+    V_Q = preprocessing.scale(V_Q, axis=-1)
+    V_Q = V_Q / np.sqrt(len(V_Q[0]))
+    score = V_Q.dot(np.transpose(V_T))
+    idx = np.argsort(score)
+    D = []
+    for i in range(len(Q)):
+        d = {}
+        d['input'] = Q[i][0]
+        d['result'] = [(score[i][idx[i][-j-1]],T[idx[i][-j-1]][0]) for j in range(5)]
+        D.append(d)
+    D1 = []
+    for d in D:
+        D1.append({'input':d['input'],'result':['%0.4f'%t[0]+'\t'+t[1] for t in d['result']]})
+
 def main(_):
   tf.logging.set_verbosity(tf.logging.INFO)
 
