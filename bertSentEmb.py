@@ -792,6 +792,11 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
   return features
 
 def test():
+    bert_config = modeling.BertConfig.from_json_file(FLAGS.bert_config_file)
+    max_seq_length = FLAGS.max_seq_length
+    tokenizer = tokenization.FullTokenizer(
+        vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
+    label_list = ['0','1']
     text_a = '我在工作'
     example = InputExample(guid='guid', text_a=text_a, label='0')
     feature = convert_single_example(0, example, label_list, max_seq_length, tokenizer)
