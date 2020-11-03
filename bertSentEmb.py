@@ -44,7 +44,7 @@ flags.DEFINE_string(
 
 flags.DEFINE_string("task_name", None, "The name of the task to train.")
 
-flags.DEFINE_string("vocab_file", None,
+flags.DEFINE_string("vocab_file", "model/roberta_zh_L-6-H-768_A-12/vocab.txt",
                     "The vocabulary file that the BERT model was trained on.")
 
 flags.DEFINE_string(
@@ -246,6 +246,48 @@ class LCQMCPairClassificationProcessor(DataProcessor): # TODO NEED CHANGE2
           print('###error.i:', i, line)
     return examples
 
+class SentClassificationProcessor(DataProcessor): # TODO NEED CHANGE2
+  """Processor for the internal data set. sentence pair classification"""
+  def __init__(self):
+    self.language = "zh"
+
+  def get_train_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "train.txt")), "train")
+    # dev_0827.tsv
+
+  def get_dev_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "dev.txt")), "dev")
+
+  def get_test_examples(self, data_dir):
+    """See base class."""
+    return self._create_examples(
+        self._read_tsv(os.path.join(data_dir, "test.txt")), "test")
+
+  def get_labels(self):
+    """See base class."""
+    return ["0", "1"]
+
+  def _create_examples(self, lines, set_type):
+    """Creates examples for the training and dev sets."""
+    examples = []
+    print("length of lines:",len(lines))
+    for (i, line) in enumerate(lines):
+      #print('#i:',i,line)
+      if i == 0:
+        continue
+      guid = "%s-%s" % (set_type, i)
+      try:
+          label = tokenization.convert_to_unicode(line[1])
+          text_a = tokenization.convert_to_unicode(line[0])
+          examples.append(
+              InputExample(guid=guid, text_a=text_a, label=label))
+      except Exception:
+          print('###error.i:', i, line)
+    return examples
 
 def convert_single_example(ex_index, example, label_list, max_seq_length,
                            tokenizer):
@@ -749,7 +791,25 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
     features.append(feature)
   return features
 
-
+def test():
+    text_a = '我在工作'
+    example = InputExample(guid='guid', text_a=text_a, label='0')
+    feature = convert_single_example(0, example, label_list, max_seq_length, tokenizer)
+    input_ids = tf.placeholder(tf.int32,shape = [None,max_seq_length],name = 'input_ids')
+    input_mask = tf.placeholder(tf.int32,shape = [None,max_seq_length],name = 'input_mask')
+    segment_ids = tf.placeholder(tf.int32,shape = [None,max_seq_length],name = 'segment_ids')
+    labels = tf.placeholder(tf.int32, shape=[None, ], name='labels')
+    output_layer,loss, per_example_loss, logits, probabilities = create_model(bert_config, False, input_ids, input_mask, segment_ids,labels, 2, False)
+    tvars = tf.trainable_variables()
+    init_checkpoint = FLAGS.init_checkpoint
+    (assignment_map, initialized_variable_names
+     ) = modeling.get_assignment_map_from_checkpoint(tvars, init_checkpoint)
+    tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
+    feed_dict = {input_ids:[feature.input_ids],segment_ids:[feature.segment_ids],input_mask:[feature.input_mask]}
+    with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
+        tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
+        y = sess.run(output_layer,feed_dict=feed_dict)
 def main(_):
   tf.logging.set_verbosity(tf.logging.INFO)
 
