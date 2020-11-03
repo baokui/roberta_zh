@@ -38,13 +38,13 @@ flags.DEFINE_string(
     "for the task.")
 
 flags.DEFINE_string(
-    "bert_config_file", "model/roberta_zh_L-6-H-768_A-12/bert_config.json",
+    "bert_config_file", "model/roeberta_zh_L-24_H-1024_A-16//bert_config_large.json",
     "The config json file corresponding to the pre-trained BERT model. "
     "This specifies the model architecture.")
 
 flags.DEFINE_string("task_name", None, "The name of the task to train.")
 
-flags.DEFINE_string("vocab_file", "model/roberta_zh_L-6-H-768_A-12/vocab.txt",
+flags.DEFINE_string("vocab_file", "model/roeberta_zh_L-24_H-1024_A-16//vocab.txt",
                     "The vocabulary file that the BERT model was trained on.")
 
 flags.DEFINE_string(
@@ -54,7 +54,7 @@ flags.DEFINE_string(
 ## Other parameters
 
 flags.DEFINE_string(
-    "init_checkpoint", "model/roberta_zh_L-6-H-768_A-12/bert_model.ckpt",
+    "init_checkpoint", "model/roeberta_zh_L-24_H-1024_A-16/roberta_zh_large_model.ckpt",
     "Initial checkpoint (usually from a pre-trained BERT model).")
 
 flags.DEFINE_bool(
@@ -804,7 +804,7 @@ def test():
     input_mask = tf.placeholder(tf.int32,shape = [None,max_seq_length],name = 'input_mask')
     segment_ids = tf.placeholder(tf.int32,shape = [None,max_seq_length],name = 'segment_ids')
     labels = tf.placeholder(tf.int32, shape=[None, ], name='labels')
-    sequence_output,output_layer,loss, per_example_loss, logits, probabilities = create_model(bert_config, False, input_ids, input_mask, segment_ids,labels, 2, False)
+    sequence_output,output_layer0,loss, per_example_loss, logits, probabilities = create_model(bert_config, False, input_ids, input_mask, segment_ids,labels, 2, False)
     tvars = tf.trainable_variables()
     init_checkpoint = FLAGS.init_checkpoint
     (assignment_map, initialized_variable_names
@@ -816,8 +816,10 @@ def test():
     example = InputExample(guid='guid', text_a=text_a, label='0')
     feature = convert_single_example(10, example, label_list, max_seq_length, tokenizer)
     feed_dict = {input_ids: [feature.input_ids], segment_ids: [feature.segment_ids], input_mask: [feature.input_mask]}
-    y1 = sess.run(output_layer, feed_dict=feed_dict)
+    y1 = sess.run(output_layer0, feed_dict=feed_dict)
 
+    output_layer = output_layer0
+    output_layer = sequence_output[:,0,:]
     with open('/search/odin/guobk/vpa/vpa-studio-research/search/datapro/Docs/Docs-multiReplace.json','r') as f:
         import json
         S = json.load(f)
@@ -832,8 +834,6 @@ def test():
         feed_dict = {input_ids:[feature.input_ids],segment_ids:[feature.segment_ids],input_mask:[feature.input_mask]}
         y = sess.run(output_layer, feed_dict=feed_dict)
         T.append([S[i],y[0]])
-
-
     Q = []
     with open('/search/odin/guobk/vpa/vpa-studio-research/search/datapro/data/20201022_active.txt', 'r',encoding='utf-8') as f:
         S = f.read().strip().split('\n')
@@ -867,7 +867,8 @@ def test():
     D1 = []
     for d in D:
         D1.append({'input':d['input'],'result':['%0.4f'%t[0]+'\t'+t[1] for t in d['result']]})
-
+    with open('tmp-firstToken.json','w',encoding='utf-8') as f:
+        json.dump(D1,f,ensure_ascii=False,indent=4)
 def main(_):
   tf.logging.set_verbosity(tf.logging.INFO)
 
