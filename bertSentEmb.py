@@ -38,13 +38,13 @@ flags.DEFINE_string(
     "for the task.")
 
 flags.DEFINE_string(
-    "bert_config_file", "model/roeberta_zh_L-24_H-1024_A-16//bert_config_large.json",
+    "bert_config_file", "model/roeberta_zh_L-24_H-1024_A-16/bert_config_large.json",
     "The config json file corresponding to the pre-trained BERT model. "
     "This specifies the model architecture.")
 
 flags.DEFINE_string("task_name", None, "The name of the task to train.")
 
-flags.DEFINE_string("vocab_file", "model/roeberta_zh_L-24_H-1024_A-16//vocab.txt",
+flags.DEFINE_string("vocab_file", "model/roeberta_zh_L-24_H-1024_A-16/vocab.txt",
                     "The vocabulary file that the BERT model was trained on.")
 
 flags.DEFINE_string(
@@ -792,6 +792,61 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
 
     features.append(feature)
   return features
+def sentEmb(S):
+    bert_config = modeling.BertConfig.from_json_file(FLAGS.bert_config_file)
+    max_seq_length = FLAGS.max_seq_length
+    tokenizer = tokenization.FullTokenizer(
+        vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
+    label_list = ['0','1']
+    tf.reset_default_graph()
+    input_ids = tf.placeholder(tf.int32,shape = [None,max_seq_length],name = 'input_ids')
+    input_mask = tf.placeholder(tf.int32,shape = [None,max_seq_length],name = 'input_mask')
+    segment_ids = tf.placeholder(tf.int32,shape = [None,max_seq_length],name = 'segment_ids')
+    labels = tf.placeholder(tf.int32, shape=[None, ], name='labels')
+    sequence_output,output_layer0,loss, per_example_loss, logits, probabilities = create_model(bert_config, False, input_ids, input_mask, segment_ids,labels, 2, False)
+    tvars = tf.trainable_variables()
+    init_checkpoint = FLAGS.init_checkpoint
+    (assignment_map, initialized_variable_names
+     ) = modeling.get_assignment_map_from_checkpoint(tvars, init_checkpoint)
+    tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
+    sess = tf.Session()
+    sess.run(tf.global_variables_initializer())
+    output = {'roeberta_zh_L-24_H-1024_A-16-lastTokenDense':output_layer0,'roeberta_zh_L-24_H-1024_A-16-lastToken':sequence_output[:, 0, :]}
+    T = []
+    for i in range(len(S)):
+        if i % 100 == 0:
+            print(i, len(S))
+        text_a = S[i]
+        example = InputExample(guid='guid', text_a=text_a, label='0')
+        feature = convert_single_example(10, example, label_list, max_seq_length, tokenizer)
+        feed_dict = {input_ids: [feature.input_ids], segment_ids: [feature.segment_ids],
+                     input_mask: [feature.input_mask]}
+        y = {key:sess.run(output[key], feed_dict=feed_dict)[0] for key in output}
+        T.append([i,S[i], y])
+    return T
+def sentEmb_multiReplace():
+    import json
+    import numpy as np
+    with open('/search/odin/guobk/vpa/vpa-studio-research/search/datapro/Docs/Docs-multiReplace.json','r',encoding='utf-8') as f:
+        D = json.load(f)
+    S = [d['content'] for d in D]
+    T = sentEmb(S)
+    if len(T)!=len(S):
+        print('error')
+    keys = list(T[0][2].keys())
+    R = [np.array([T[i][2][k] for i in range(len(T))]) for k in keys]
+    np.dump('/search/odin/guobk/vpa/vpa-studio-research/search/datapro/Docs/multiReplace'+keys[0]+'.npy',R[0])
+    np.dump('/search/odin/guobk/vpa/vpa-studio-research/search/datapro/Docs/multiReplace' + keys[1] + '.npy', R[1])
+
+    with open('/search/odin/guobk/vpa/vpa-studio-research/search/datapro/Docs/Prose/contents.txt','r',encoding='utf-8') as f:
+        S = f.read().strip().split('\n')
+    T = sentEmb(S)
+    if len(T)!=len(S):
+        print('error')
+    keys = list(T[0][2].keys())
+    R = [np.array([T[i][2][k] for i in range(len(T))]) for k in keys]
+    np.dump('/search/odin/guobk/vpa/vpa-studio-research/search/datapro/Docs/Prose/prose'+keys[0]+'.npy',R[0])
+    np.dump('/search/odin/guobk/vpa/vpa-studio-research/search/datapro/Docs/Prose/prose' + keys[1] + '.npy', R[1])
 
 def test():
     bert_config = modeling.BertConfig.from_json_file(FLAGS.bert_config_file)
