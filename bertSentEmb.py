@@ -876,8 +876,6 @@ def test():
     feed_dict = {input_ids: [feature.input_ids], segment_ids: [feature.segment_ids], input_mask: [feature.input_mask]}
     y1 = sess.run(output_layer0, feed_dict=feed_dict)
 
-
-if 1:
     #output_layer = output_layer0
     output_layer = mean_pool
     # output_layer = sequence_output[:,0,:]
@@ -930,7 +928,6 @@ if 1:
         D1.append({'input':d['input'],'result':['%0.4f'%t[0]+'\t'+t[1] for t in d['result']]})
     with open('tmp-large-meanPool.json','w',encoding='utf-8') as f:
         json.dump(D1,f,ensure_ascii=False,indent=4)
-if 1:
     text_a = "对不起你"
     example = InputExample(guid='guid', text_a=text_a, label='0')
     feature = convert_single_example(10, example, label_list, max_seq_length, tokenizer)
