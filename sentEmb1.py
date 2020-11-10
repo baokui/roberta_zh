@@ -5,12 +5,6 @@ import json
 import numpy as np
 import pymysql
 
-class NumpyEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        return json.JSONEncoder.default(self, obj)
-
 def getData():
     conn = pymysql.connect(
         host='mt.tugele.rds.sogou',
@@ -37,10 +31,10 @@ def getData():
     S = {str(info[i][0]): info[i][1] for i in range(len(info)) if info[i][2] == 0}
     return S
 D = getData()
-key0 = 'roberta_zh_l12'
-bert_config_file = 'model/roberta_zh_l12/bert_config.json'
-vocab_file = 'model/roberta_zh_l12/vocab.txt'
-init_checkpoint = 'model/roberta_zh_l12/bert_model.ckpt'
+key0 = 'roberta_zh_L-6-H-768_A-12'
+bert_config_file = 'model/roberta_zh_L-6-H-768_A-12/bert_config.json'
+vocab_file = 'model/roberta_zh_L-6-H-768_A-12/vocab.txt'
+init_checkpoint = 'model/roberta_zh_L-6-H-768_A-12/bert_model.ckpt'
 idx = [k for k in D]
 S = [D[k] for k in D]
 T = sentEmb(S,bert_config_file,vocab_file,init_checkpoint)
@@ -52,7 +46,7 @@ D0 = {idx[i]:list(R[0][i]) for i in range(len(idx))}
 D1 = {idx[i]:list(R[1][i]) for i in range(len(idx))}
 S0 = {k:[np.float(t) for t in D0[k]] for k in D0}
 S1 = {k:[np.float(t) for t in D1[k]] for k in D1}
-with open('data/'+key0+'-'+keys[0]+'.json','w',encoding='utf-8') as f:
+with open('SentVects/'+key0+'-'+keys[0]+'.json','w',encoding='utf-8') as f:
     json.dump(S0,f)
-with open('data/'+key0+'-'+keys[1]+'.json','w') as f:
+with open('SentVects/'+key0+'-'+keys[1]+'.json','w') as f:
     json.dump(S1,f)
