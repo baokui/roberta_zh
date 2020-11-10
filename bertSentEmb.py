@@ -859,6 +859,7 @@ def test():
     segment_ids = tf.placeholder(tf.int32,shape = [None,max_seq_length],name = 'segment_ids')
     labels = tf.placeholder(tf.int32, shape=[None, ], name='labels')
     sequence_output,output_layer0,loss, per_example_loss, logits, probabilities = create_model(bert_config, False, input_ids, input_mask, segment_ids,labels, 2, False)
+    mean_pool = tf.reduce_mean(sequence_output,axis=1)
     tvars = tf.trainable_variables()
     init_checkpoint = FLAGS.init_checkpoint
     (assignment_map, initialized_variable_names
@@ -866,14 +867,17 @@ def test():
     tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
     sess = tf.Session()
     sess.run(tf.global_variables_initializer())
+    import numpy as np
+    print('参数量:%d'%np.sum([np.prod(v.get_shape().as_list()) for v in tf.trainable_variables()]))
     text_a = "我真心是担心你啊，你为什么这么理解呢"
     example = InputExample(guid='guid', text_a=text_a, label='0')
     feature = convert_single_example(10, example, label_list, max_seq_length, tokenizer)
     feed_dict = {input_ids: [feature.input_ids], segment_ids: [feature.segment_ids], input_mask: [feature.input_mask]}
     y1 = sess.run(output_layer0, feed_dict=feed_dict)
 
-    output_layer = output_layer0
-    output_layer = sequence_output[:,0,:]
+    #output_layer = output_layer0
+    output_layer = mean_pool
+    # output_layer = sequence_output[:,0,:]
     with open('/search/odin/guobk/vpa/vpa-studio-research/search/datapro/Docs/Docs-multiReplace.json','r') as f:
         import json
         S = json.load(f)
@@ -921,8 +925,23 @@ def test():
     D1 = []
     for d in D:
         D1.append({'input':d['input'],'result':['%0.4f'%t[0]+'\t'+t[1] for t in d['result']]})
-    with open('tmp-firstToken.json','w',encoding='utf-8') as f:
+    with open('tmp-large-meanPool.json','w',encoding='utf-8') as f:
         json.dump(D1,f,ensure_ascii=False,indent=4)
+    text_a = "对不起你"
+    example = InputExample(guid='guid', text_a=text_a, label='0')
+    feature = convert_single_example(10, example, label_list, max_seq_length, tokenizer)
+    feed_dict = {input_ids: [feature.input_ids], segment_ids: [feature.segment_ids], input_mask: [feature.input_mask]}
+    y1 = sess.run(output_layer, feed_dict=feed_dict)
+    v1 = preprocessing.scale(y1, axis=-1)
+    v1 = v1 / np.sqrt(len(v1[0]))
+    score = v1.dot(np.transpose(V_T))
+    idx = np.argsort(score)
+    D = []
+    i = 0
+    d = {}
+    d['input'] = text_a
+    d['result'] = [(score[i][idx[i][-j - 1]], T[idx[i][-j - 1]][0]) for j in range(5)]
+
 def main(_):
   tf.logging.set_verbosity(tf.logging.INFO)
 
