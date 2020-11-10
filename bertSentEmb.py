@@ -792,11 +792,11 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
 
     features.append(feature)
   return features
-def sentEmb(S):
-    bert_config = modeling.BertConfig.from_json_file(FLAGS.bert_config_file)
+def sentEmb(S,bert_config_file,vocab_file,init_checkpoint):
+    bert_config = modeling.BertConfig.from_json_file(bert_config_file)
     max_seq_length = FLAGS.max_seq_length
     tokenizer = tokenization.FullTokenizer(
-        vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
+        vocab_file=vocab_file, do_lower_case=FLAGS.do_lower_case)
     label_list = ['0','1']
     tf.reset_default_graph()
     input_ids = tf.placeholder(tf.int32,shape = [None,max_seq_length],name = 'input_ids')
@@ -805,13 +805,12 @@ def sentEmb(S):
     labels = tf.placeholder(tf.int32, shape=[None, ], name='labels')
     sequence_output,output_layer0,loss, per_example_loss, logits, probabilities = create_model(bert_config, False, input_ids, input_mask, segment_ids,labels, 2, False)
     tvars = tf.trainable_variables()
-    init_checkpoint = FLAGS.init_checkpoint
     (assignment_map, initialized_variable_names
      ) = modeling.get_assignment_map_from_checkpoint(tvars, init_checkpoint)
     tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
     sess = tf.Session()
     sess.run(tf.global_variables_initializer())
-    output = {'roeberta_zh_L-24_H-1024_A-16-lastTokenDense':output_layer0,'roeberta_zh_L-24_H-1024_A-16-lastToken':sequence_output[:, 0, :]}
+    output = {'lastTokenDense':output_layer0,'lastToken':sequence_output[:, 0, :]}
     T = []
     for i in range(len(S)):
         if i % 100 == 0:
@@ -835,8 +834,8 @@ def sentEmb_multiReplace():
         print('error')
     keys = list(T[0][2].keys())
     R = [np.array([T[i][2][k] for i in range(len(T))]) for k in keys]
-    np.dump('/search/odin/guobk/vpa/vpa-studio-research/search/datapro/Docs/multiReplace'+keys[0]+'.npy',R[0])
-    np.dump('/search/odin/guobk/vpa/vpa-studio-research/search/datapro/Docs/multiReplace' + keys[1] + '.npy', R[1])
+    np.save('/search/odin/guobk/vpa/vpa-studio-research/search/datapro/Docs/multiReplace'+keys[0]+'.npy',R[0])
+    np.save('/search/odin/guobk/vpa/vpa-studio-research/search/datapro/Docs/multiReplace' + keys[1] + '.npy', R[1])
 
     with open('/search/odin/guobk/vpa/vpa-studio-research/search/datapro/Docs/Prose/contents.txt','r',encoding='utf-8') as f:
         S = f.read().strip().split('\n')
@@ -845,8 +844,8 @@ def sentEmb_multiReplace():
         print('error')
     keys = list(T[0][2].keys())
     R = [np.array([T[i][2][k] for i in range(len(T))]) for k in keys]
-    np.dump('/search/odin/guobk/vpa/vpa-studio-research/search/datapro/Docs/Prose/prose'+keys[0]+'.npy',R[0])
-    np.dump('/search/odin/guobk/vpa/vpa-studio-research/search/datapro/Docs/Prose/prose' + keys[1] + '.npy', R[1])
+    np.save('/search/odin/guobk/vpa/vpa-studio-research/search/datapro/Docs/Prose/prose'+keys[0]+'.npy',R[0])
+    np.save('/search/odin/guobk/vpa/vpa-studio-research/search/datapro/Docs/Prose/prose' + keys[1] + '.npy', R[1])
 
 def test():
     bert_config = modeling.BertConfig.from_json_file(FLAGS.bert_config_file)
