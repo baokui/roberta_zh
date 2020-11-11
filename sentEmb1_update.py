@@ -60,7 +60,7 @@ for file in files:
     print('update for %s'%file)
     print('before update:%d,%d'%(n0[0],n0[1]))
     print('after update:%d,%d' % (n1[0], n1[1]))
-    with open('data/'+key0+'-'+keys[0]+'.json','w',encoding='utf-8') as f:
+    with open('SentVects/'+key0+'-'+keys[0]+'.json','w',encoding='utf-8') as f:
         json.dump(D0,f)
-    with open('data/'+key0+'-'+keys[1]+'.json','w') as f:
+    with open('SentVects/'+key0+'-'+keys[1]+'.json','w') as f:
         json.dump(D1,f)
