@@ -220,7 +220,7 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
                     all_documents, document_index, max_seq_length, short_seq_prob,
                     masked_lm_prob, max_predictions_per_seq, vocab_words, rng))
             if document_index%1000==0:
-                print(document_index,len(all_documents)*dupe_factor)
+                print(document_index,len(all_documents)*dupe_factor,len(instances))
     rng.shuffle(instances)
     print("create_training_instances.ended...")
     return instances
