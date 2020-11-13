@@ -184,7 +184,6 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
                               max_predictions_per_seq, rng):
     """Create `TrainingInstance`s from raw text."""
     all_documents = [[]]
-
     # Input file format:
     # (1) One sentence per line. These should ideally be actual sentences, not
     # entire paragraphs or arbitrary spans of text. (Because we use the
@@ -192,6 +191,7 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
     # (2) Blank lines between documents. Document boundaries are needed so
     # that the "next sentence prediction" task doesn't span between documents.
     print("create_training_instances.started...")
+    nb_lines = 0
     for input_file in input_files:
         with tf.gfile.GFile(input_file, "r") as reader:
             while True:
@@ -199,18 +199,18 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
                 if not line:
                     break
                 line = line.strip()
-
+                nb_lines += 1
                 # Empty lines are used as document delimiters
                 if not line:
                     all_documents.append([])
                 tokens = tokenizer.tokenize(line)
                 if tokens:
                     all_documents[-1].append(tokens)
-
+                if nb_lines%1000==0:
+                    print(input_file,nb_lines)
     # Remove empty documents
     all_documents = [x for x in all_documents if x]
     rng.shuffle(all_documents)
-
     vocab_words = list(tokenizer.vocab.keys())
     instances = []
     for _ in range(dupe_factor):
@@ -219,10 +219,10 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
                 create_instances_from_document(
                     all_documents, document_index, max_seq_length, short_seq_prob,
                     masked_lm_prob, max_predictions_per_seq, vocab_words, rng))
-
+            if document_index%1000==0:
+                print(document_index,len(all_documents)*dupe_factor)
     rng.shuffle(instances)
     print("create_training_instances.ended...")
-
     return instances
 
 
