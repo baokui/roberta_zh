@@ -1,7 +1,7 @@
 modelfile=model/roberta_zh_l12
 cuda=2
 outputfile=model/roberta-12-finetune
-max_seq_length=1024
+max_seq_length=256
 mkdir $outputfile
 sh run_train_finetune.sh $modelfile $cuda $outputfile $max_seq_length
 
