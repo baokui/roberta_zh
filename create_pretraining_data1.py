@@ -302,8 +302,8 @@ def get_raw_instance(document,max_sequence_length): # 新增的方法
             result_list.append(curr_seq)
             curr_seq = []
     # 对最后一个序列进行处理，如果太短的话，丢弃掉。
-    # if len(curr_seq)>max_sequence_length_allowed/2: # /2
-    result_list.append(curr_seq)
+    if len(curr_seq)>max_sequence_length_allowed/2: # /2
+        result_list.append(curr_seq)
 
     # # 计算总共可以得到多少份
     # num_instance=int(len(big_list)/max_sequence_length_allowed)+1
