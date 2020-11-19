@@ -792,9 +792,8 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
 
     features.append(feature)
   return features
-def sentEmb(S,bert_config_file,vocab_file,init_checkpoint):
+def sentEmb(S,bert_config_file,vocab_file,init_checkpoint,max_seq_length = FLAGS.max_seq_length):
     bert_config = modeling.BertConfig.from_json_file(bert_config_file)
-    max_seq_length = FLAGS.max_seq_length
     tokenizer = tokenization.FullTokenizer(
         vocab_file=vocab_file, do_lower_case=FLAGS.do_lower_case)
     label_list = ['0','1']
