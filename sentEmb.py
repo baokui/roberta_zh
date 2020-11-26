@@ -15,7 +15,7 @@ def sentEmbing(D,init_checkpoint,bert_config_file,vocab_file,max_seqlen,tag):
     R = [T[i][2]['lastToken'] for i in range(len(T))]
     V = norm(np.array(R))
     for i in range(len(D)):
-        D[i][tag] = list(V[i])
+        D[i][tag] = np.array(V[i]).tolist()
     return D
 def main(path_data,path_target,init_checkpoint,bert_config_file,vocab_file,max_seqlen,tag):
     D = json.load(open(path_data, 'r', encoding='utf-8'))
