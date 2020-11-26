@@ -1,26 +1,28 @@
-import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-from bertSentEmb import *
-import json
+from bertSentEmb import sentEmb
 import numpy as np
-# with open('/search/odin/guobk/vpa/vpa-studio-research/search/datapro/Docs/Docs-multiReplace.json','r',encoding='utf-8') as f:
-#     D = json.load(f)
-# S = [d['content'] for d in D]
-# T = sentEmb(S)
-# if len(T)!=len(S):
-#     print('error')
-# keys = list(T[0][2].keys())
-# R = [np.array([T[i][2][k] for i in range(len(T))]) for k in keys]
-# np.save('/search/odin/guobk/vpa/vpa-studio-research/search/datapro/Docs/multiReplace'+keys[0]+'.npy',R[0])
-# np.save('/search/odin/guobk/vpa/vpa-studio-research/search/datapro/Docs/multiReplace' + keys[1] + '.npy', R[1])
-
-with open('/search/odin/guobk/vpa/vpa-studio-research/data/corpus/raw5.txt','r',encoding='utf-8') as f:
-    S = f.read().strip().split('\n')
-S = [ss.split('\t')[1] for ss in S]
-T = sentEmb(S)
-if len(T)!=len(S):
-    print('error')
-keys = list(T[0][2].keys())
-R = [np.array([T[i][2][k] for i in range(len(T))]) for k in keys]
-np.save('/search/odin/guobk/vpa/vpa-studio-research/data/corpus/raw5-'+keys[0]+'.npy',R[0])
-np.save('/search/odin/guobk/vpa/vpa-studio-research/data/corpus/raw5-' + keys[1] + '.npy', R[1])
+from sklearn import preprocessing
+import json
+import sys
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = sys.argv[1]
+def norm(V1):
+    V1 = preprocessing.scale(V1, axis=-1)
+    V1 = V1 / np.sqrt(len(V1[0]))
+    return V1
+def sentEmbing(D,init_checkpoint,bert_config_file,vocab_file,max_seqlen,tag):
+    S = [d['content'] for d in D]
+    T = sentEmb(S, bert_config_file, vocab_file, init_checkpoint,max_seqlen)
+    R = [T[i][2]['lastToken'] for i in range(len(T))]
+    V = norm(np.array(R))
+    for i in range(len(D)):
+        D[i][tag] = list(V[i])
+    return D
+def main(path_data,path_target,init_checkpoint,bert_config_file,vocab_file,max_seqlen,tag):
+    D = json.load(open(path_data, 'r', encoding='utf-8'))
+    D = sentEmbing(D,init_checkpoint,bert_config_file,vocab_file,max_seqlen,tag)
+    with open(path_target,'w',encoding='utf-8') as f:
+        json.dump(D,f,ensure_ascii=False,indent=4)
+if __name__=='__main__':
+    path_data, path_target, init_checkpoint, bert_config_file, vocab_file, max_seqlen, tag = sys.argv[2:]
+    max_seqlen = int(max_seqlen)
+    main(path_data, path_target, init_checkpoint, bert_config_file, vocab_file, max_seqlen, tag)

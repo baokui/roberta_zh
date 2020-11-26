@@ -103,3 +103,38 @@ def test_pretrain():
         R0[i]['result-3-pretrain'] = result[i]['result']
     with open('data_allScene/Result-comp.json','w') as f:
         json.dump(R0,f,ensure_ascii=False,indent=4)
+
+def test_pretrain64():
+    path_data = 'data_allScene/20201109-all.txt'
+    with open(path_data, 'r', encoding='utf-8') as f:
+        S = f.read().strip().split('\n')[1:]
+    S = [s.split('\t')[0] for s in S[100000:200000]]
+    S = [s for s in S if len(s) > 5 and len(s) < 30]
+    init_checkpoint = 'model/bert_allScene64/ckpt/model.ckpt-200000'
+    bert_config_file = 'model/bert_allScene64/bert_config.json'
+    vocab_file = 'model/bert_allScene64/vocab.txt'
+    T = sentEmb(S, bert_config_file, vocab_file, init_checkpoint,64)
+    R = [T[i][2]['lastToken'] for i in range(len(T))]
+    Q = norm(np.array(R))
+    Docs0 = getData()
+    path_doc = 'SentVects-finetune/model-roberta-12-finetune-model.ckpt-141000-lastToken.json'
+    Docs = json.load(open(path_doc, 'r'))
+    D = [Docs0[k] for k in Docs0 if k in Docs]
+    T = sentEmb(D, bert_config_file, vocab_file, init_checkpoint, 64)
+    R = [T[i][2]['lastToken'] for i in range(len(T))]
+    D_V = norm(np.array(R))
+    s = Q.dot(np.transpose(D_V))
+    idx_score = np.argsort(-s, axis=-1)
+    result = []
+    for i in range(100):
+        idx = idx_score[i][:10]
+        rr = [D[ii] + '\t%0.4f' % s[i][ii] for ii in idx]
+        result.append({'input': S[i], 'result': rr})
+    with open('data_allScene/Result-comp.json','r') as f:
+        R0 = json.load(f)
+    for i in range(len(result)):
+        R0[i]['result-3-pretrain64'] = result[i]['result']
+    with open('data_allScene/Result-comp.json','w') as f:
+        json.dump(R0,f,ensure_ascii=False,indent=4)
+
+
