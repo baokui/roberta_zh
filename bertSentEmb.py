@@ -792,6 +792,42 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
 
     features.append(feature)
   return features
+def sentEmb_tianchi(S,bert_config_file,vocab_file,init_checkpoint,max_seq_length = FLAGS.max_seq_length):
+    bert_config = modeling.BertConfig.from_json_file(bert_config_file)
+    tokenizer = tokenization.FullTokenizer(
+        vocab_file=vocab_file, do_lower_case=FLAGS.do_lower_case)
+    with open('tianchi/data/labels.txt','r') as f:
+        label_list = f.read().strip().split('\n')
+    nb_labels = len(label_list)
+    tf.reset_default_graph()
+    input_ids = tf.placeholder(tf.int32,shape = [None,max_seq_length],name = 'input_ids')
+    input_mask = tf.placeholder(tf.int32,shape = [None,max_seq_length],name = 'input_mask')
+    segment_ids = tf.placeholder(tf.int32,shape = [None,max_seq_length],name = 'segment_ids')
+    labels = tf.placeholder(tf.int32, shape=[None, ], name='labels')
+    sequence_output,output_layer0,loss, per_example_loss, logits, probabilities = create_model(bert_config, False,
+                                                                                               input_ids, input_mask,
+                                                                                               segment_ids,labels, nb_labels,
+                                                                                               False)
+    tvars = tf.trainable_variables()
+    (assignment_map, initialized_variable_names
+     ) = modeling.get_assignment_map_from_checkpoint(tvars, init_checkpoint)
+    tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
+    sess = tf.Session()
+    sess.run(tf.global_variables_initializer())
+    output = {'lastTokenDense':output_layer0,'lastToken':sequence_output[:, 0, :]}
+    T = []
+    for i in range(len(S)):
+        if i % 100 == 0:
+            print(i, len(S))
+        text_a = S[i][0]
+        text_b = S[i][1]
+        example = InputExample(guid='guid', text_a=text_a, text_b=text_b, label='0')
+        feature = convert_single_example(10, example, label_list, max_seq_length, tokenizer)
+        feed_dict = {input_ids: [feature.input_ids], segment_ids: [feature.segment_ids],
+                     input_mask: [feature.input_mask]}
+        y = sess.run(probabilities, feed_dict=feed_dict)[0]
+        T.append([i,S[i], y])
+    return T
 def sentEmb(S,bert_config_file,vocab_file,init_checkpoint,max_seq_length = FLAGS.max_seq_length):
     bert_config = modeling.BertConfig.from_json_file(bert_config_file)
     tokenizer = tokenization.FullTokenizer(

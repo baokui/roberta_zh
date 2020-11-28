@@ -9,7 +9,7 @@ nohup python -u run_classfier_tianchi.py \
 --init_checkpoint=$BERT_BASE_DIR/roberta_zh_large_model.ckpt \
 --vocab_file=$BERT_BASE_DIR/vocab.txt \
 --task_name=lcqmc_pair \
---train_batch_size=4 \
+--train_batch_size=8 \
 --max_seq_length=256 \
 --max_predictions_per_seq=2 \
 --num_train_steps=20000000 \
