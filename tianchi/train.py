@@ -72,37 +72,18 @@ def main(path_query,path_doc,path_target):
         json.dump(result,f,ensure_ascii=False,indent=4)
 
 def test():
-if 1:
     path_data = 'tianchi/data/prepro/dev.txt'
     with open(path_data, 'r', encoding='utf-8') as f:
         S = f.read().strip().split('\n')
     S = [s.split('\t') for s in S]
-    init_checkpoint = 'tianchi/model/model.ckpt-0'
+    init_checkpoint = 'tianchi/model/model.ckpt-3000'
     bert_config_file = 'tianchi/model/bert_config.json'
     vocab_file = 'tianchi/model/vocab.txt'
     T = sentEmb_tianchi(S, bert_config_file, vocab_file, init_checkpoint,256)
-    R = [T[i][2]['lastToken'] for i in range(len(T))]
-    Q = norm(np.array(R))
-    Docs0 = getData()
-    path_doc = 'SentVects-finetune/model-roberta-12-finetune-model.ckpt-141000-lastToken.json'
-    Docs = json.load(open(path_doc, 'r'))
-    D = [Docs0[k] for k in Docs0 if k in Docs]
-    T = sentEmb(D, bert_config_file, vocab_file, init_checkpoint, 32)
-    R = [T[i][2]['lastToken'] for i in range(len(T))]
-    D_V = norm(np.array(R))
-    s = Q.dot(np.transpose(D_V))
-    idx_score = np.argsort(-s, axis=-1)
-    result = []
-    for i in range(100):
-        idx = idx_score[i][:10]
-        rr = [D[ii] + '\t%0.4f' % s[i][ii] for ii in idx]
-        result.append({'input': S[i], 'result': rr})
-    with open('data_allScene/Result-comp.json','r') as f:
-        R0 = json.load(f)
-    for i in range(len(result)):
-        R0[i]['result-3-pretrain'] = result[i]['result']
-    with open('data_allScene/Result-comp.json','w') as f:
-        json.dump(R0,f,ensure_ascii=False,indent=4)
+    for i in range(len(T)):
+        T[i].append(np.argmax(T[i][2]))
+    p = [T[i][1][-1]==str(T[i][-1]) for i in range(len(T))]
+
 
 def test_pretrain64():
     path_data = 'data_allScene/20201109-all.txt'
