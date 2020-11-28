@@ -796,7 +796,7 @@ def sentEmb_tianchi(S,bert_config_file,vocab_file,init_checkpoint,max_seq_length
     bert_config = modeling.BertConfig.from_json_file(bert_config_file)
     tokenizer = tokenization.FullTokenizer(
         vocab_file=vocab_file, do_lower_case=FLAGS.do_lower_case)
-    with open('tianchi/data/labels.txt','r') as f:
+    with open('tianchi/data/prepro/labels.txt','r') as f:
         label_list = f.read().strip().split('\n')
     nb_labels = len(label_list)
     tf.reset_default_graph()
