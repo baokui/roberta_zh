@@ -6,6 +6,7 @@ import numpy as np
 from sklearn import preprocessing
 import tensorflow as tf
 import pymysql
+import sys
 def getData():
     conn = pymysql.connect(
         host='mt.tugele.rds.sogou',
@@ -71,12 +72,12 @@ def main(path_query,path_doc,path_target):
     with open(path_target,'w') as f:
         json.dump(result,f,ensure_ascii=False,indent=4)
 
-def test():
-    path_data = 'tianchi/data/prepro/dev.txt'
+def test(path_source,path_target,path_model):
+    path_data = path_source
     with open(path_data, 'r', encoding='utf-8') as f:
         S = f.read().strip().split('\n')
     S = [s.split('\t') for s in S]
-    init_checkpoint = 'tianchi/model/model.ckpt-3000'
+    init_checkpoint = path_model
     bert_config_file = 'tianchi/model/bert_config.json'
     vocab_file = 'tianchi/model/vocab.txt'
     T = sentEmb_tianchi(S, bert_config_file, vocab_file, init_checkpoint,256)
@@ -84,7 +85,10 @@ def test():
         T[i].append(np.argmax(T[i][2]))
     p = [T[i][1][-1]==str(T[i][-1]) for i in range(len(T))]
     print(sum(p)/len(p))
-
+    S = [S[i]+[str(T[i][-1])] for i in range(len(T))]
+    S = ['\t'.join(s) for s in S]
+    with open(path_target,'w',encoding='utf-8') as f:
+        f.write('\n'.join(S))
 
 def test_pretrain64():
     path_data = 'data_allScene/20201109-all.txt'
@@ -121,4 +125,5 @@ def test_pretrain64():
 
 
 if __name__=='__main__':
-    test()
+    path_source, path_target, path_model = sys.argv[1:]
+    test(path_source,path_target,path_model)
