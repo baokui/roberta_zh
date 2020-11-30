@@ -72,7 +72,7 @@ def main(path_query,path_doc,path_target):
     with open(path_target,'w') as f:
         json.dump(result,f,ensure_ascii=False,indent=4)
 
-def test(path_source,path_target,path_model):
+def test(path_source,path_target,path_model,max_seqlen):
     path_data = path_source
     with open(path_data, 'r', encoding='utf-8') as f:
         S = f.read().strip().split('\n')
@@ -80,7 +80,7 @@ def test(path_source,path_target,path_model):
     init_checkpoint = path_model
     bert_config_file = 'tianchi/model/bert_config.json'
     vocab_file = 'tianchi/model/vocab.txt'
-    T = sentEmb_tianchi(S, bert_config_file, vocab_file, init_checkpoint,256)
+    T = sentEmb_tianchi(S, bert_config_file, vocab_file, init_checkpoint,max_seqlen)
     for i in range(len(T)):
         T[i].append(np.argmax(T[i][2]))
     p = [T[i][1][-1]==str(T[i][-1]) for i in range(len(T))]
@@ -125,5 +125,6 @@ def test_pretrain64():
 
 
 if __name__=='__main__':
-    path_source, path_target, path_model = sys.argv[1:]
-    test(path_source,path_target,path_model)
+    path_source, path_target, path_model, max_seqlen = sys.argv[1:]
+    max_seqlen = int(max_seqlen)
+    test(path_source,path_target,path_model,max_seqlen)
