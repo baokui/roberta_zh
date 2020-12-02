@@ -845,7 +845,7 @@ def sentEmb(S,bert_config_file,vocab_file,init_checkpoint,max_seq_length = FLAGS
     tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
     sess = tf.Session()
     sess.run(tf.global_variables_initializer())
-    output = {'lastTokenDense':output_layer0,'lastToken':sequence_output[:, 0, :]}
+    output = {'lastTokenDense':output_layer0,'lastToken':sequence_output[:, 0, :],'sequence_vector':sequence_output}
     T = []
     for i in range(len(S)):
         if i % 100 == 0:
