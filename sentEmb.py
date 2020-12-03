@@ -12,7 +12,8 @@ def norm(V1):
 def sentEmbing(D,init_checkpoint,bert_config_file,vocab_file,max_seqlen,tag):
     S = [d['content'] for d in D]
     T = sentEmb(S, bert_config_file, vocab_file, init_checkpoint,max_seqlen)
-    R = [T[i][2]['lastToken'] for i in range(len(T))]
+    #R = [T[i][2]['lastToken'] for i in range(len(T))]
+    R = [np.mean(T[i][2]['sequence_vector'][1:len(S[i])+1],axis=0) for i in range(len(T))]
     V = norm(np.array(R))
     for i in range(len(D)):
         D[i][tag] = np.array(V[i]).tolist()
