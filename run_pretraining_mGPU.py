@@ -764,9 +764,12 @@ def main(_):
               allow_soft_placement=True)) as sess:
           sess.run(init)
           sess.run(iterator.initializer)
-          checkpoint_path = os.path.join(FLAGS.output_dir, 'model.ckpt')
-          if os.path.exists(FLAGS.output_dir):
+          #checkpoint_path = os.path.join(FLAGS.output_dir, 'model.ckpt')
+          checkpoint_path = FLAGS.init_checkpoint
+          if checkpoint_path:
               saver.restore(sess, checkpoint_path)
+          #if os.path.exists(FLAGS.output_dir):
+              #saver.restore(sess, checkpoint_path)
 
           count = 0
           t0 = time.time()
