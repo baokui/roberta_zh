@@ -633,43 +633,43 @@ def main(_):
   for input_file in input_files:
     tf.logging.info("  %s" % input_file)
 
-  tpu_cluster_resolver = None
-  if FLAGS.use_tpu and FLAGS.tpu_name:
-    tpu_cluster_resolver = tf.contrib.cluster_resolver.TPUClusterResolver( # TODO
-        tpu=FLAGS.tpu_name, zone=FLAGS.tpu_zone, project=FLAGS.gcp_project)
+  # tpu_cluster_resolver = None
+  # if FLAGS.use_tpu and FLAGS.tpu_name:
+  #   tpu_cluster_resolver = tf.contrib.cluster_resolver.TPUClusterResolver( # TODO
+  #       tpu=FLAGS.tpu_name, zone=FLAGS.tpu_zone, project=FLAGS.gcp_project)
+  #
+  # print("###tpu_cluster_resolver:",tpu_cluster_resolver,";FLAGS.use_tpu:",FLAGS.use_tpu,";FLAGS.tpu_name:",FLAGS.tpu_name,";FLAGS.tpu_zone:",FLAGS.tpu_zone)
+  # # ###tpu_cluster_resolver: <tensorflow.python.distribute.cluster_resolver.tpu_cluster_resolver.TPUClusterResolver object at 0x7f4b387b06a0> ;FLAGS.use_tpu: True ;FLAGS.tpu_name: grpc://10.240.1.83:8470
 
-  print("###tpu_cluster_resolver:",tpu_cluster_resolver,";FLAGS.use_tpu:",FLAGS.use_tpu,";FLAGS.tpu_name:",FLAGS.tpu_name,";FLAGS.tpu_zone:",FLAGS.tpu_zone)
-  # ###tpu_cluster_resolver: <tensorflow.python.distribute.cluster_resolver.tpu_cluster_resolver.TPUClusterResolver object at 0x7f4b387b06a0> ;FLAGS.use_tpu: True ;FLAGS.tpu_name: grpc://10.240.1.83:8470
+  # is_per_host = tf.contrib.tpu.InputPipelineConfig.PER_HOST_V2
+  # run_config = tf.contrib.tpu.RunConfig(
+  #     keep_checkpoint_max=None, # 10
+  #     cluster=tpu_cluster_resolver,
+  #     master=FLAGS.master,
+  #     model_dir=FLAGS.output_dir,
+  #     save_checkpoints_steps=FLAGS.save_checkpoints_steps,
+  #     tpu_config=tf.contrib.tpu.TPUConfig(
+  #         iterations_per_loop=FLAGS.iterations_per_loop,
+  #         num_shards=FLAGS.num_tpu_cores,
+  #         per_host_input_for_training=is_per_host))
 
-  is_per_host = tf.contrib.tpu.InputPipelineConfig.PER_HOST_V2
-  run_config = tf.contrib.tpu.RunConfig(
-      keep_checkpoint_max=None, # 10
-      cluster=tpu_cluster_resolver,
-      master=FLAGS.master,
-      model_dir=FLAGS.output_dir,
-      save_checkpoints_steps=FLAGS.save_checkpoints_steps,
-      tpu_config=tf.contrib.tpu.TPUConfig(
-          iterations_per_loop=FLAGS.iterations_per_loop,
-          num_shards=FLAGS.num_tpu_cores,
-          per_host_input_for_training=is_per_host))
-
-  model_fn = model_fn_builder(
-      bert_config=bert_config,
-      init_checkpoint=FLAGS.init_checkpoint,
-      learning_rate=FLAGS.learning_rate,
-      num_train_steps=FLAGS.num_train_steps,
-      num_warmup_steps=FLAGS.num_warmup_steps,
-      use_tpu=FLAGS.use_tpu,
-      use_one_hot_embeddings=FLAGS.use_tpu)
+  # model_fn = model_fn_builder(
+  #     bert_config=bert_config,
+  #     init_checkpoint=FLAGS.init_checkpoint,
+  #     learning_rate=FLAGS.learning_rate,
+  #     num_train_steps=FLAGS.num_train_steps,
+  #     num_warmup_steps=FLAGS.num_warmup_steps,
+  #     use_tpu=FLAGS.use_tpu,
+  #     use_one_hot_embeddings=FLAGS.use_tpu)
 
   # If TPU is not available, this will fall back to normal Estimator on CPU
   # or GPU.
-  estimator = tf.contrib.tpu.TPUEstimator(
-      use_tpu=FLAGS.use_tpu,
-      model_fn=model_fn,
-      config=run_config,
-      train_batch_size=FLAGS.train_batch_size,
-      eval_batch_size=FLAGS.eval_batch_size)
+  # estimator = tf.contrib.tpu.TPUEstimator(
+  #     use_tpu=FLAGS.use_tpu,
+  #     model_fn=model_fn,
+  #     config=run_config,
+  #     train_batch_size=FLAGS.train_batch_size,
+  #     eval_batch_size=FLAGS.eval_batch_size)
 
   if FLAGS.do_train:
       mode = tf.estimator.ModeKeys.TRAIN
@@ -713,7 +713,6 @@ def main(_):
               with tf.variable_scope('lm', reuse=k > 0):
                   # calculate the loss for one model replica and get
                   #   lstm states
-
                   input_ids = input_ids_list[k]
                   input_mask = input_mask_list[k]
                   segment_ids = segment_ids_list[k]
@@ -721,9 +720,7 @@ def main(_):
                   masked_lm_ids = masked_lm_ids_list[k]
                   masked_lm_weights = masked_lm_weights_list[k]
                   #next_sentence_labels = next_sentence_labels_list[k]
-
                   is_training = (mode == tf.estimator.ModeKeys.TRAIN)
-
                   model = modeling.BertModel(
                       config=bert_config,
                       is_training=is_training,
@@ -731,18 +728,14 @@ def main(_):
                       input_mask=input_mask,
                       token_type_ids=segment_ids,
                       use_one_hot_embeddings=use_one_hot_embeddings)
-
                   (masked_lm_loss,
                    masked_lm_example_loss, masked_lm_log_probs) = get_masked_lm_output(
                       bert_config, model.get_sequence_output(), model.get_embedding_table(),
                       masked_lm_positions, masked_lm_ids, masked_lm_weights)
-
                   # (next_sentence_loss, next_sentence_example_loss,
                   #  next_sentence_log_probs) = get_next_sentence_output(
                   #     bert_config, model.get_pooled_output(), next_sentence_labels)
-
                   total_loss = masked_lm_loss
-
                   loss = total_loss
                   models.append(model)
                   # get gradients
@@ -764,10 +757,26 @@ def main(_):
               allow_soft_placement=True)) as sess:
           sess.run(init)
           sess.run(iterator.initializer)
+          #saver.restore(sess, init_checkpoint)
           #checkpoint_path = os.path.join(FLAGS.output_dir, 'model.ckpt')
           checkpoint_path = FLAGS.init_checkpoint
           if checkpoint_path:
-              saver.restore(sess, checkpoint_path)
+              tvars = tf.trainable_variables()
+              initialized_variable_names = {}
+              print("init_checkpoint:", checkpoint_path)
+              if checkpoint_path:
+                  (assignment_map, initialized_variable_names
+                   ) = modeling.get_assignment_map_from_checkpoint(tvars, checkpoint_path)
+                  tf.train.init_from_checkpoint(checkpoint_path, assignment_map)
+              tf.logging.info("**** Trainable Variables ****")
+              for var in tvars:
+                  init_string = ""
+                  if var.name in initialized_variable_names:
+                      init_string = ", *INIT_FROM_CKPT*"
+                  tf.logging.info("  name = %s, shape = %s%s", var.name, var.shape,
+                                  init_string)
+              #saver.restore(sess, checkpoint_path)
+
           #if os.path.exists(FLAGS.output_dir):
               #saver.restore(sess, checkpoint_path)
 
@@ -791,24 +800,6 @@ def main(_):
                   checkpoint_path = os.path.join(FLAGS.output_dir, 'model.ckpt')
                   saver.save(sess, checkpoint_path)
 
-  if FLAGS.do_eval:
-    tf.logging.info("***** Running evaluation *****")
-    tf.logging.info("  Batch size = %d", FLAGS.eval_batch_size)
-
-    eval_input_fn = input_fn_builder(
-        input_files=input_files,
-        max_seq_length=FLAGS.max_seq_length,
-        max_predictions_per_seq=FLAGS.max_predictions_per_seq,
-        is_training=False)
-
-    result = estimator.evaluate(input_fn=eval_input_fn, steps=FLAGS.max_eval_steps)
-
-    output_eval_file = os.path.join(FLAGS.output_dir, "eval_results.txt")
-    with tf.gfile.GFile(output_eval_file, "w") as writer:
-      tf.logging.info("***** Eval results *****")
-      for key in sorted(result.keys()):
-        tf.logging.info("  %s = %s", key, str(result[key]))
-        writer.write("%s = %s\n" % (key, str(result[key])))
 
 
 if __name__ == "__main__":
