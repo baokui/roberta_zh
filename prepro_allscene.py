@@ -48,3 +48,16 @@ for i in range(len(files)):
     with open(files[i].replace('raw','raw-washed'),'w',encoding='utf-8') as f:
         f.write('\n'.join(S))
     print(i, files[i],len(S))
+
+
+with open('data_prose/raw.txt','r',encoding='utf-8') as f:
+    s = f.read().strip().split('\n\n')
+R = []
+for i in range(len(s)):
+    t = s[i]
+    n = len([tt for tt in t if _is_chinese_char(tt)])
+    if n>=10:
+        R.append(t)
+
+with open('data_prose/raw.txt','w',encoding='utf-8') as f:
+    f.write('\n\n'.join(R))
