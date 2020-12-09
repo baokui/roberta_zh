@@ -18,7 +18,7 @@ def sentEmbing(D,init_checkpoint,bert_config_file,vocab_file,max_seqlen,tag,IDF)
     for i in range(len(T)):
         v0 = T[i][2]['sequence_vector']
         v = []
-        for j in range(len(S[i])):
+        for j in range(min(len(S[i]),max_seqlen-1)):
             if S[i][j] not in IDF:
                 w = IDF['UNK']
             else:

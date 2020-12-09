@@ -78,7 +78,19 @@ nohup python -u sentEmb.py $gpu $path_data $path_target $init_checkpoint $bert_c
 ################################
 # w2v weighted mean
 File=Docs
-gpu=4
+gpu=6
+tag=allScenePre-weightedmean
+path_data="/search/odin/guobk/vpa/vpa-studio-research/retrieval/data/$File.json"
+path_target="/search/odin/guobk/vpa/vpa-studio-research/retrieval/data/$File-$tag.json"
+init_checkpoint='model/bert_allScene/ckpt/model.ckpt-200000'
+bert_config_file='model/bert_allScene/bert_config.json'
+vocab_file='model/bert_allScene/vocab.txt'
+path_idf='data_allScene_pretrain/IDF.json'
+max_seqlen=32
+nohup python -u sentEmb.py $gpu $path_data $path_target $init_checkpoint $bert_config_file $vocab_file $max_seqlen $tag $path_idf >> log/sent-$tag-$File.log 2>&1 &
+
+File=Queries1
+gpu=6
 tag=allScenePre-weightedmean
 path_data="/search/odin/guobk/vpa/vpa-studio-research/retrieval/data/$File.json"
 path_target="/search/odin/guobk/vpa/vpa-studio-research/retrieval/data/$File-$tag.json"
