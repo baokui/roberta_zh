@@ -98,7 +98,7 @@ nohup python -u run_pretraining.py --input_file=$files  \
 --output_dir=$my_new_model_path --do_train=True --do_eval=True --bert_config_file=$BERT_BASE_DIR/bert_config.json \
 --train_batch_size=64 --max_seq_length=$max_seq_length --max_predictions_per_seq=2 \
 --num_train_steps=2000000 --num_warmup_steps=10000 --learning_rate=1e-4  --tpu_name=123  \
---save_checkpoints_steps=3000 --init_checkpoint=model/bert_prose/ckpt/model.ckpt-200000 >> log/pretrain-bert_prose_finetune48.log 2>&1 &
+--save_checkpoints_steps=3000 --init_checkpoint=model/bert_prose_finetune/ckpt/model.ckpt-342000 >> log/pretrain-bert_prose_finetune48-2.log 2>&1 &
 
 
 
@@ -118,4 +118,4 @@ nohup python -u run_pretraining_mGPU.py --input_file=$files  --n_gpus=4 \
 --output_dir=$my_new_model_path --do_train=True --do_eval=True --bert_config_file=$BERT_BASE_DIR/bert_config.json \
 --train_batch_size=64 --max_seq_length=$max_seq_length --max_predictions_per_seq=2 \
 --num_train_steps=2000000 --num_warmup_steps=10000 --learning_rate=1e-4  --tpu_name=123  \
---save_checkpoints_steps=3000 --init_checkpoint=model/bert_prose/ckpt/model.ckpt-200000 >> log/pretrain-bert_prose_finetune48-gpus.log 2>&1 &
+--save_checkpoints_steps=3000 --init_checkpoint=model/bert_prose_finetune_mgpu/ckpt/model.ckpt >> log/pretrain-bert_prose_finetune48-gpus.log 2>&1 &

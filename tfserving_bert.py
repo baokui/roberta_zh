@@ -7,6 +7,11 @@ import json
 import sys
 import time
 import numpy as np
+from sklearn import preprocessing
+def norm(V1):
+    V1 = preprocessing.scale(V1, axis=-1)
+    V1 = V1 / np.sqrt(len(V1[0]))
+    return V1
 def pbmodel(bert_config_file,checkpoint_path,max_seq_length,path_export_model,version='0'):
     bert_config = modeling.BertConfig.from_json_file(bert_config_file)
     tf.reset_default_graph()
@@ -69,6 +74,7 @@ def test(path_data,path_target,vocab_file,max_seq_length=48):
         p = r.json()['predictions'][0]
         y = p[1:len(text_a)+1]
         y = np.mean(np.array(y),axis=0)
+        y = norm(y)
         D[i]['sent_bert3'] = list(y)
         if i%10000==0:
             with open(path_target,'w',encoding='utf-8') as f:
