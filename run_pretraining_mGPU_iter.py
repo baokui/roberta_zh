@@ -678,26 +678,6 @@ def main(_):
       tf.logging.info("  Batch size = %d", FLAGS.train_batch_size)
       n_gpus = FLAGS.n_gpus
       batch_size = FLAGS.train_batch_size
-      d = input_fn(input_files, batch_size * n_gpus, FLAGS.max_seq_length,
-                   FLAGS.max_predictions_per_seq, True)
-      features, iterator = parse_input_fn_result(d)
-      # train_input_fn = input_fn_builder(
-      #     input_files=input_files,
-      #     max_seq_length=FLAGS.max_seq_length,
-      #     max_predictions_per_seq=FLAGS.max_predictions_per_seq,
-      #     is_training=True)
-      # estimator.train(input_fn=train_input_fn, max_steps=FLAGS.num_train_steps)
-
-      input_ids_list = tf.split(features["input_ids"], n_gpus, axis=0)
-      input_mask_list = tf.split(features["input_mask"], n_gpus, axis=0)
-      segment_ids_list = tf.split(features["segment_ids"], n_gpus, axis=0)
-      masked_lm_positions_list = tf.split(features["masked_lm_positions"], n_gpus, axis=0)
-      masked_lm_ids_list = tf.split(features["masked_lm_ids"], n_gpus, axis=0)
-      masked_lm_weights_list = tf.split(features["masked_lm_weights"], n_gpus, axis=0)
-      next_sentence_labels_list = tf.split(features["next_sentence_labels"], n_gpus, axis=0)
-
-      # multi-gpu train
-
       # optimizer = optimization_gpu.create_optimizer(
       #     None, FLAGS.learning_rate, FLAGS.num_train_steps, FLAGS.num_warmup_steps, False)
       optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate)
@@ -713,9 +693,9 @@ def main(_):
               with tf.variable_scope('lm', reuse=k > 0):
                   # calculate the loss for one model replica and get
                   #   lstm states
-                  input_ids = input_ids_list[k]
-                  input_mask = input_mask_list[k]
-                  segment_ids = segment_ids_list[k]
+                  input_ids = tf.placeholder(tf.int32, shape=[None, FLAGS.max_seq_length], name='input_ids-%d'%k)
+                  input_mask = tf.placeholder(tf.int32, shape=[None, FLAGS.max_seq_length], name='input_mask-%d'%k)
+                  segment_ids = tf.placeholder(tf.int32, shape=[None, FLAGS.max_seq_length], name='segment_ids-%d'%k)
                   masked_lm_positions = masked_lm_positions_list[k]
                   masked_lm_ids = masked_lm_ids_list[k]
                   masked_lm_weights = masked_lm_weights_list[k]
@@ -756,6 +736,9 @@ def main(_):
       with tf.Session(config=tf.ConfigProto(
               allow_soft_placement=True)) as sess:
           sess.run(init)
+          d = input_fn(input_files, batch_size * n_gpus, FLAGS.max_seq_length,
+                       FLAGS.max_predictions_per_seq, True)
+          features, iterator = parse_input_fn_result(d)
           sess.run(iterator.initializer)
           #saver.restore(sess, init_checkpoint)
           #checkpoint_path = os.path.join(FLAGS.output_dir, 'model.ckpt')
@@ -784,11 +767,8 @@ def main(_):
           t0 = time.time()
           sum = 0
           while True:
-              try:
-                _, loss_print_ = sess.run([train_op, loss_print])
-              except:
-                sess.run(iterator.initializer)
-                print('Iterator initialized')
+
+              _, loss_print_ = sess.run([train_op, loss_print])
               # optimistic_restore(sess, checkpoint_path + "-0")
               # loss_print_2 = sess.run([loss_print])
               sum += loss_print_
