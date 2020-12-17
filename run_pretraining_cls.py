@@ -244,9 +244,10 @@ def model_fn_builder(bert_config, init_checkpoint, learning_rate,
 def get_masked_lm_output(bert_config, input_tensor, output_weights, positions,
                          label_ids, label_weights):
   """Get loss and log probs for the masked LM."""
-  print("CHECK-lastLayer0:", input_tensor,positions)
-  input_tensor = gather_indexes(input_tensor, positions)
-  print("CHECK-lastLayer1:", input_tensor)
+  #input_tensor = gather_indexes(input_tensor, positions)
+  # CHANGE by guobk
+  input_tensor = tf.squeeze(input_tensor[:, 0:1, :], axis=1)
+
   with tf.variable_scope("cls/predictions"):
     # We apply one more non-linear transformation before the output layer.
     # This matrix is not used after pre-training.
@@ -258,7 +259,7 @@ def get_masked_lm_output(bert_config, input_tensor, output_weights, positions,
           kernel_initializer=modeling.create_initializer(
               bert_config.initializer_range))
       input_tensor = modeling.layer_norm(input_tensor)
-
+    print("CHECK-lastLayer:",input_tensor)
     # The output weights are the same as the input embeddings, but there is
     # an output-only bias for each token.
     output_bias = tf.get_variable(
