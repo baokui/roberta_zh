@@ -214,7 +214,7 @@ class BertModel(object):
             attention_probs_dropout_prob=config.attention_probs_dropout_prob,
             initializer_range=config.initializer_range,
             do_return_all_layers=True)
-
+      print("CHECK-all-encoder:",self.all_encoder_layers)
       self.sequence_output = self.all_encoder_layers[-1] # [batch_size, seq_length, hidden_size]
       # The "pooler" converts the encoded sequence tensor of shape
       # [batch_size, seq_length, hidden_size] to a tensor of shape
