@@ -794,72 +794,6 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
 
     features.append(feature)
   return features
-def sentEmb_tianchi(S,bert_config_file,vocab_file,init_checkpoint,max_seq_length = FLAGS.max_seq_length):
-    bert_config = modeling.BertConfig.from_json_file(bert_config_file)
-    tokenizer = tokenization.FullTokenizer(
-        vocab_file=vocab_file, do_lower_case=FLAGS.do_lower_case)
-    with open('tianchi/data/prepro/labels.txt','r') as f:
-        label_list = f.read().strip().split('\n')
-    nb_labels = len(label_list)
-    tf.reset_default_graph()
-    input_ids = tf.placeholder(tf.int32,shape = [None,max_seq_length],name = 'input_ids')
-    input_mask = tf.placeholder(tf.int32,shape = [None,max_seq_length],name = 'input_mask')
-    segment_ids = tf.placeholder(tf.int32,shape = [None,max_seq_length],name = 'segment_ids')
-    labels = tf.placeholder(tf.int32, shape=[None, ], name='labels')
-    sequence_output,output_layer0,loss, per_example_loss, logits, probabilities = create_model(bert_config, False,
-                                                                                               input_ids, input_mask,
-                                                                                               segment_ids,labels, nb_labels,
-                                                                                               False)
-    tvars = tf.trainable_variables()
-    (assignment_map, initialized_variable_names
-     ) = modeling.get_assignment_map_from_checkpoint(tvars, init_checkpoint)
-    tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
-    sess = tf.Session()
-    sess.run(tf.global_variables_initializer())
-    output = {'lastTokenDense':output_layer0,'lastToken':sequence_output[:, 0, :]}
-    T = []
-    for i in range(len(S)):
-        if i % 100 == 0:
-            print(i, len(S))
-        text_a = S[i][0]
-        text_b = S[i][1]
-        example = InputExample(guid='guid', text_a=text_a, text_b=text_b, label='0')
-        feature = convert_single_example(10, example, label_list, max_seq_length, tokenizer)
-        feed_dict = {input_ids: [feature.input_ids], segment_ids: [feature.segment_ids],
-                     input_mask: [feature.input_mask]}
-        y = sess.run(probabilities, feed_dict=feed_dict)[0]
-        T.append([i,S[i], y])
-    return T
-def sentEmb(S,bert_config_file,vocab_file,init_checkpoint,max_seq_length = FLAGS.max_seq_length):
-    bert_config = modeling.BertConfig.from_json_file(bert_config_file)
-    tokenizer = tokenization.FullTokenizer(
-        vocab_file=vocab_file, do_lower_case=FLAGS.do_lower_case)
-    label_list = ['0','1']
-    tf.reset_default_graph()
-    input_ids = tf.placeholder(tf.int32,shape = [None,max_seq_length],name = 'input_ids')
-    input_mask = tf.placeholder(tf.int32,shape = [None,max_seq_length],name = 'input_mask')
-    segment_ids = tf.placeholder(tf.int32,shape = [None,max_seq_length],name = 'segment_ids')
-    labels = tf.placeholder(tf.int32, shape=[None, ], name='labels')
-    sequence_output,output_layer0,loss, per_example_loss, logits, probabilities = create_model(bert_config, False, input_ids, input_mask, segment_ids,labels, 2, False)
-    tvars = tf.trainable_variables()
-    (assignment_map, initialized_variable_names
-     ) = modeling.get_assignment_map_from_checkpoint(tvars, init_checkpoint)
-    tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
-    sess = tf.Session()
-    sess.run(tf.global_variables_initializer())
-    output = {'lastTokenDense':output_layer0,'lastToken':sequence_output[:, 0, :],'sequence_vector':sequence_output}
-    T = []
-    for i in range(len(S)):
-        if i % 100 == 0:
-            print(i, len(S))
-        text_a = S[i]
-        example = InputExample(guid='guid', text_a=text_a, label='0')
-        feature = convert_single_example(10, example, label_list, max_seq_length, tokenizer)
-        feed_dict = {input_ids: [feature.input_ids], segment_ids: [feature.segment_ids],
-                     input_mask: [feature.input_mask]}
-        y = {key:sess.run(output[key], feed_dict=feed_dict)[0] for key in output}
-        T.append([i,S[i], y])
-    return T
 def iterData(path_file,tokenizer,batch_size=64,epochs=3):
     import random
     label_list = ['0','1']
@@ -963,6 +897,63 @@ def main(_):
                        global_step=global_step)
         data = next(iter)
 
+def sentEmb(S):
+    embedding_size = 768
+    bert_config = modeling.BertConfig.from_json_file(FLAGS.bert_config_file)
+    tokenizer = tokenization.FullTokenizer(
+        vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
+    vocabulary_size = len(tokenizer.vocab)
+    tf.reset_default_graph()
+    input_ids = tf.placeholder(tf.int32, shape=[None, FLAGS.max_seq_length], name='input_ids')
+    input_mask = tf.placeholder(tf.int32, shape=[None, FLAGS.max_seq_length], name='input_mask')
+    segment_ids = tf.placeholder(tf.int32, shape=[None, FLAGS.max_seq_length], name='segment_ids')
+    word_inputs = tf.placeholder(tf.int32, shape=[None])
+    word_labels = tf.placeholder(tf.int32, shape=[None, 1])
+    model = modeling.BertModel(
+        config=bert_config,
+        is_training=FLAGS.do_train,
+        input_ids=input_ids,
+        input_mask=input_mask,
+        token_type_ids=segment_ids,
+        use_one_hot_embeddings=False)
+    sequence_output = model.get_sequence_output()
+    first_token_tensor = tf.squeeze(sequence_output[:, 0:1, :], axis=1)
+    embeddings = model.get_embedding_table()
+    embed = tf.nn.embedding_lookup(embeddings, word_inputs)
+    output = {'sent2vec':first_token_tensor}
+    feature = tf.concat([first_token_tensor, embed], axis=-1)
+    nce_weights = tf.Variable(
+        tf.truncated_normal([vocabulary_size, embedding_size * 2],
+                            stddev=1.0 / math.sqrt(embedding_size * 2)))
+    nce_biases = tf.Variable(tf.zeros([vocabulary_size]), dtype=tf.float32)
+    # Compute the average NCE loss for the batch.
+    # tf.nce_loss automatically draws a new sample of the negative labels each
+    # time we evaluate the loss.
+    saver = tf.train.Saver(max_to_keep=None)
+    sess = tf.Session()
+    module_file = tf.train.latest_checkpoint(FLAGS.output_dir)
+    saver.restore(sess, module_file)
+    X_input = []
+    X_mask = []
+    X_segmet = []
+    for i in range(len(S)):
+        text_a = S[i]
+        example = InputExample(guid='guid', text_a=text_a, label='0')
+        feature = convert_single_example(10, example, ['0','1'], FLAGS.max_seq_length, tokenizer)
+        X_input.append(feature.input_ids)
+        X_segmet.append(feature.segment_ids)
+        X_mask.append(feature.input_mask)
+    T = []
+    for i in range(len(S)):
+        if i % 100 == 0:
+            print(i, len(S))
+        text_a = S[i]
+        example = InputExample(guid='guid', text_a=text_a, label='0')
+        feature = convert_single_example(10, example, ['0','1'], FLAGS.max_seq_length, tokenizer)
+        feed_dict = {input_ids: [feature.input_ids], segment_ids: [feature.segment_ids],
+                     input_mask: [feature.input_mask]}
+        y = {key: sess.run(output[key], feed_dict=feed_dict)[0] for key in output}
+        T.append([i, S[i], y])
 
 
 if __name__ == "__main__":
