@@ -901,7 +901,7 @@ def iterData(path_file,tokenizer,batch_size=64,epochs=3):
 
 def main(_):
     embedding_size = 768
-    num_sampled = 64
+    num_sampled = None
     learning_rate = 1e-3
     step_printloss = 100
     step_savemodel = 1000
