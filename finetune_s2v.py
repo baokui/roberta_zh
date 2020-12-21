@@ -26,6 +26,7 @@ import optimization_finetuning as optimization
 import tokenization
 import tensorflow as tf
 import math
+import numpy as np
 # from loss import bi_tempered_logistic_loss
 
 flags = tf.flags
@@ -34,7 +35,7 @@ FLAGS = flags.FLAGS
 
 ## Required parameters
 flags.DEFINE_string(
-    "data_dir", None,
+    "data_dir", "data_allScene_pretrain/raw-washed",
     "The input data dir. Should contain the .tsv files (or other data files) "
     "for the task.")
 
@@ -859,15 +860,17 @@ def sentEmb(S,bert_config_file,vocab_file,init_checkpoint,max_seq_length = FLAGS
         y = {key:sess.run(output[key], feed_dict=feed_dict)[0] for key in output}
         T.append([i,S[i], y])
     return T
-def iterData(path_file,tokenizer,batch_size=64):
+def iterData(path_file,tokenizer,batch_size=64,epochs=3):
     import random
     label_list = ['0','1']
     files = os.listdir(path_file)
     files = [os.path.join(path_file,file) for file in files]
     X_input = []
-    X_segmet = []
     X_mask = []
-    for epoch in FLAGS.epochs:
+    X_segmet = []
+    word_inputs = []
+    word_labels = []
+    for epoch in range(epochs):
         random.shuffle(files)
         for i in range(len(files)):
             with open(files[i],'r',encoding='utf-8') as f:
@@ -875,27 +878,43 @@ def iterData(path_file,tokenizer,batch_size=64):
                     text_a = line.strip()
                     example = InputExample(guid='guid', text_a=text_a, label='0')
                     feature = convert_single_example(10, example, label_list, FLAGS.max_seq_length, tokenizer)
-                    X_input.append(feature.input_ids)
-                    X_segmet.append(feature.segment_ids)
-                    X_mask.append(feature.input_mask)
-                    if len(X_input)>=batch_size:
-                        yield epoch,X_input,X_mask,X_segmet
+                    x = feature.input_ids
+                    for j in range(1,len(x)):
+                        t = x[j]
+                        if t==0:
+                            break
+                        if random.random()>0.2:
+                            continue
+                        word_inputs.append(t)
+                        word_labels.append(x[j+1])
+                        X_input.append(feature.input_ids)
+                        X_segmet.append(feature.segment_ids)
+                        X_mask.append(feature.input_mask)
+                        if len(X_input)>=batch_size:
+                            yield epoch,X_input,X_mask,X_segmet,word_inputs,word_labels
+                            X_input = []
+                            X_mask = []
+                            X_segmet = []
+                            word_inputs = []
+                            word_labels = []
     yield '__STOP__'
 
 def main(_):
     embedding_size = 768
     num_sampled = 64
+    learning_rate = 1e-3
+    step_printloss = 100
+    step_savemodel = 1000
     bert_config = modeling.BertConfig.from_json_file(FLAGS.bert_config_file)
     tokenizer = tokenization.FullTokenizer(
         vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
-    labels = ['0', '1']
     vocabulary_size = len(tokenizer.vocab)
     tf.reset_default_graph()
     input_ids = tf.placeholder(tf.int32, shape=[None, FLAGS.max_seq_length], name='input_ids')
     input_mask = tf.placeholder(tf.int32, shape=[None, FLAGS.max_seq_length], name='input_mask')
     segment_ids = tf.placeholder(tf.int32, shape=[None, FLAGS.max_seq_length], name='segment_ids')
-    train_inputs = tf.placeholder(tf.int32, shape=[None])
-    train_labels = tf.placeholder(tf.int32, shape=[None, 1])
+    word_inputs = tf.placeholder(tf.int32, shape=[None])
+    word_labels = tf.placeholder(tf.int32, shape=[None, 1])
     model = modeling.BertModel(
         config=bert_config,
         is_training=FLAGS.do_train,
@@ -903,12 +922,25 @@ def main(_):
         input_mask=input_mask,
         token_type_ids=segment_ids,
         use_one_hot_embeddings=False)
-    #labels = tf.placeholder(tf.int32, shape=[None, ], name='labels')
-    sequence_output, output_layer0, loss, per_example_loss, logits, probabilities = create_model(bert_config, False,
-                                                                                                 input_ids, input_mask,
-                                                                                                 segment_ids, labels, 2,
-                                                                                                 False)
+    sequence_output = model.get_sequence_output()
     first_token_tensor = tf.squeeze(sequence_output[:, 0:1, :], axis=1)
+    embeddings = model.get_embedding_table()
+    embed = tf.nn.embedding_lookup(embeddings, word_inputs)
+    feature = tf.concat([first_token_tensor, embed], axis=-1)
+    nce_weights = tf.Variable(
+        tf.truncated_normal([vocabulary_size, embedding_size * 2],
+                            stddev=1.0 / math.sqrt(embedding_size * 2)))
+    nce_biases = tf.Variable(tf.zeros([vocabulary_size]), dtype=tf.float32)
+    # Compute the average NCE loss for the batch.
+    # tf.nce_loss automatically draws a new sample of the negative labels each
+    # time we evaluate the loss.
+    loss = tf.reduce_mean(
+        tf.nn.nce_loss(weights=nce_weights, biases=nce_biases, inputs=feature, labels=word_labels,
+                       num_sampled=num_sampled, num_classes=vocabulary_size))
+    train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss)
+    saver = tf.train.Saver(max_to_keep=None)
+    global_step = tf.train.get_or_create_global_step()
+    model_train_op = tf.group(train_op, [tf.assign_add(global_step, 1)])
     sess = tf.Session()
     sess.run(tf.global_variables_initializer())
     if FLAGS.init_checkpoint:
@@ -916,20 +948,20 @@ def main(_):
         (assignment_map, initialized_variable_names
          ) = modeling.get_assignment_map_from_checkpoint(tvars, FLAGS.init_checkpoint)
         tf.train.init_from_checkpoint(FLAGS.init_checkpoint, assignment_map)
-    embeddings = model.get_embedding_table()
-    embed = tf.nn.embedding_lookup(embeddings, train_inputs)
-    feature = tf.concat(first_token_tensor,embed)
-    nce_weights = tf.Variable(
-            tf.truncated_normal([vocabulary_size, embedding_size],
-                                stddev=1.0 / math.sqrt(embedding_size)))
-    nce_biases = tf.Variable(tf.zeros([vocabulary_size]), dtype=tf.float32)
-    # Compute the average NCE loss for the batch.
-    # tf.nce_loss automatically draws a new sample of the negative labels each
-    # time we evaluate the loss.
-    loss = tf.reduce_mean(
-        tf.nn.nce_loss(weights=nce_weights, biases=nce_biases, inputs=feature, labels=train_labels,
-                       num_sampled=num_sampled, num_classes=vocabulary_size))
-
+    iter = iterData(FLAGS.data_dir, tokenizer, batch_size=FLAGS.train_batch_size,epochs=int(FLAGS.num_train_epochs))
+    data = next(iter)
+    while data!='__STOP__':
+        epoch,batch_input_ids,batch_input_mask,batch_segment_ids,batch_word_inputs,batch_word_labels = data
+        batch_word_labels = np.array(batch_word_labels)
+        batch_word_labels = np.reshape(batch_word_labels,[len(batch_word_labels),1])
+        feed_dict = {input_ids:batch_input_ids,input_mask:batch_input_mask,segment_ids:batch_segment_ids,word_inputs:batch_word_inputs,word_labels:batch_word_labels}
+        batch_loss,step,_ = sess.run([loss,global_step,model_train_op],feed_dict=feed_dict)
+        if step%step_printloss==0:
+            print('train total steps %d (epoch %d) with loss=%0.4f'%(step,epoch,batch_loss))
+        if step % step_savemodel == 0:
+            saver.save(sess, os.path.join(FLAGS.output_dir, 'model.ckpt'),
+                       global_step=global_step)
+        data = next(iter)
 
 
 
