@@ -139,7 +139,7 @@ max_seqlen=48
 nohup python -u sentEmb.py $gpu $path_data $path_target $init_checkpoint $bert_config_file $vocab_file $max_seqlen $tag $path_idf >> log/sent-$tag-$File.log 2>&1 &
 
 File=Docs
-gpu=0
+gpu=7
 tag=allScenePre48-weightedmean-0
 path_data="/search/odin/guobk/vpa/vpa-studio-research/retrieval/data/$File.json"
 path_target="/search/odin/guobk/vpa/vpa-studio-research/retrieval/data/$File-$tag.json"
@@ -151,7 +151,7 @@ max_seqlen=48
 nohup python -u sentEmb.py $gpu $path_data $path_target $init_checkpoint $bert_config_file $vocab_file $max_seqlen $tag $path_idf >> log/sent-$tag-$File.log 2>&1 &
 
 File=Queries1
-gpu=0
+gpu=7
 tag=allScenePre48-s2v
 path_data="/search/odin/guobk/vpa/vpa-studio-research/retrieval/data/$File.json"
 path_target="/search/odin/guobk/vpa/vpa-studio-research/retrieval/data/$File-$tag.json"
