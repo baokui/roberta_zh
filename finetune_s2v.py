@@ -890,10 +890,11 @@ def main(_):
     sess = tf.Session()
     sess.run(tf.global_variables_initializer())
     if FLAGS.init_checkpoint:
-        tvars = tf.trainable_variables()
-        (assignment_map, initialized_variable_names
-         ) = modeling.get_assignment_map_from_checkpoint(tvars, FLAGS.init_checkpoint)
-        tf.train.init_from_checkpoint(FLAGS.init_checkpoint, assignment_map)
+        saver.restore(sess, FLAGS.init_checkpoint)
+        # tvars = tf.trainable_variables()
+        # (assignment_map, initialized_variable_names
+        #  ) = modeling.get_assignment_map_from_checkpoint(tvars, FLAGS.init_checkpoint)
+        # tf.train.init_from_checkpoint(FLAGS.init_checkpoint, assignment_map)
     iter = iterData(FLAGS.data_dir, tokenizer, batch_size=FLAGS.train_batch_size,epochs=int(FLAGS.num_train_epochs))
     data = next(iter)
     while data!='__STOP__':
