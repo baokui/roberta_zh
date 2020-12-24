@@ -50,6 +50,8 @@ flags.DEFINE_bool(
 
 flags.DEFINE_integer("max_seq_length", 256, "Maximum sequence length.")
 
+flags.DEFINE_integer("min_seq_length", 0, "Minimum sequence length.")
+
 flags.DEFINE_integer("max_predictions_per_seq", 23,
                      "Maximum number of masked LM predictions per sequence.")
 
@@ -201,7 +203,7 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
                 line = line.strip()
                 nb_lines += 1
                 # Empty lines are used as document delimiters
-                if not line:
+                if not line or len(line)<=FLAGS.min_seq_length:
                     all_documents.append([])
                 tokens = tokenizer.tokenize(line)
                 if tokens:

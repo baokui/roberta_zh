@@ -50,13 +50,13 @@ flags.DEFINE_string("vocab_file", "model/model_s2v/vocab.txt",
                     "The vocabulary file that the BERT model was trained on.")
 
 flags.DEFINE_string(
-    "output_dir", "model/model_s2v/ckpt",
+    "output_dir", "model/model_s2v/ckpt1",
     "The output directory where the model checkpoints will be written.")
 
 ## Other parameters
 
 flags.DEFINE_string(
-    "init_checkpoint", "model/model_s2v/ckpt_init/model.ckpt",
+    "init_checkpoint", "model/model_s2v/ckpt/model.ckpt-2400000",
     "Initial checkpoint (usually from a pre-trained BERT model).")
 
 flags.DEFINE_bool(
@@ -872,8 +872,19 @@ def main(_):
     loss = tf.reduce_mean(
         tf.nn.nce_loss(weights=nce_weights, biases=nce_biases, inputs=feature, labels=word_labels,
                        num_sampled=num_sampled, num_classes=vocabulary_size))
+    logits = tf.matmul(feature,nce_weights,transpose_b=True)+nce_biases
+    pro_predict = tf.nn.softmax(logits,axis=-1)
+    label_predict = tf.argmax(pro_predict,axis=-1)
+
+    logits_emb = tf.matmul(embed, nce_weights, transpose_b=True) + nce_biases
+    pro_predict_emb = tf.nn.softmax(logits_emb, axis=-1)
+    label_predict_emb = tf.argmax(pro_predict_emb, axis=-1)
+    logits_cls = tf.matmul(first_token_tensor, nce_weights, transpose_b=True) + nce_biases
+    pro_predict_cls = tf.nn.softmax(logits_cls, axis=-1)
+    label_predict_cls = tf.argmax(pro_predict_cls, axis=-1)
+
     train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss)
-    saver = tf.train.Saver(max_to_keep=None)
+    saver = tf.train.Saver(max_to_keep=10)
     global_step = tf.train.get_or_create_global_step()
     model_train_op = tf.group(train_op, [tf.assign_add(global_step, 1)])
     sess = tf.Session()
@@ -896,6 +907,14 @@ def main(_):
         if step % step_savemodel == 0:
             saver.save(sess, os.path.join(FLAGS.output_dir, 'model.ckpt'),
                        global_step=global_step)
+            label_predict_,label_predict_emb_,label_predict_cls_ = sess.run([label_predict,label_predict_emb,label_predict_cls],feed_dict=feed_dict)
+            acc = sum([label_predict_[j]==batch_word_labels[j][0] for j in range(len(label_predict_))])/(0.01+len(label_predict_))
+            acc_emb = sum([label_predict_emb_[j] == batch_word_labels[j][0] for j in range(len(label_predict_))]) / (
+                        0.01 + len(label_predict_))
+            acc_cls = sum([label_predict_cls_[j] == batch_word_labels[j][0] for j in range(len(label_predict_))]) / (
+                    0.01 + len(label_predict_))
+            print('acc:%0.4f,%0.4f,%0.4f'%(acc,acc_emb,acc_emb))
+            #embed_,first_token_tensor_,feature_ = sess.run([embed,first_token_tensor,feature],feed_dict = feed_dict)
         data = next(iter)
 
 def sentEmb(S):
@@ -934,16 +953,16 @@ def sentEmb(S):
     sess = tf.Session()
     module_file = tf.train.latest_checkpoint(FLAGS.output_dir)
     saver.restore(sess, module_file)
-    X_input = []
-    X_mask = []
-    X_segmet = []
-    for i in range(len(S)):
-        text_a = S[i]
-        example = InputExample(guid='guid', text_a=text_a, label='0')
-        feature = convert_single_example(10, example, ['0','1'], FLAGS.max_seq_length, tokenizer)
-        X_input.append(feature.input_ids)
-        X_segmet.append(feature.segment_ids)
-        X_mask.append(feature.input_mask)
+    # X_input = []
+    # X_mask = []
+    # X_segmet = []
+    # for i in range(len(S)):
+    #     text_a = S[i]
+    #     example = InputExample(guid='guid', text_a=text_a, label='0')
+    #     feature = convert_single_example(10, example, ['0','1'], FLAGS.max_seq_length, tokenizer)
+    #     X_input.append(feature.input_ids)
+    #     X_segmet.append(feature.segment_ids)
+    #     X_mask.append(feature.input_mask)
     T = []
     for i in range(len(S)):
         if i % 100 == 0:

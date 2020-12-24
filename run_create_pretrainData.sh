@@ -62,3 +62,24 @@ file=${list1[i]}
 --do_lower_case=True --max_seq_length=48 --max_predictions_per_seq=2 --masked_lm_prob=0.1  --random_seed=12345  --dupe_factor=1 \
 >> log/create-pretrain-$file.log 2>&1 &
 done
+
+
+#!!!!!! inputfile里的内容必须是\n\n分割！！！！！！！！！！！！
+mkdir data_aiwriter/tfrecord/
+for((i=0;i<8;i++))
+do
+inputfile="data_aiwriter/washed1-$i.txt"
+outputfile="data_aiwriter/tfrecord/data-$i.tfrecord"
+nohup python -u create_pretraining_data.py \
+  --do_whole_word_mask=True \
+  --input_file=$inputfile \
+  --output_file=$outputfile \
+  --vocab_file=./resources/vocab.txt \
+  --do_lower_case=True \
+  --max_seq_length=128 \
+  --min_seg_length=20 \
+  --max_predictions_per_seq=2 \
+  --masked_lm_prob=0.1  \
+  --random_seed=12345  \
+  --dupe_factor=1 >> log/create-pretrain-data_aiwriter-$i.log 2>&1 &
+done
