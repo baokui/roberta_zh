@@ -868,6 +868,8 @@ def main(_):
         tf.truncated_normal([vocabulary_size, 2*embedding_size],
                             stddev=1.0 / math.sqrt(2*embedding_size)))
     nce_biases = tf.Variable(tf.zeros([vocabulary_size]), dtype=tf.float32)
+    nce_weights0 = nce_weights[:,:embedding_size]
+    nce_weights1 = nce_weights[:,embedding_size:]
     # Compute the average NCE loss for the batch.
     # tf.nce_loss automatically draws a new sample of the negative labels each
     # time we evaluate the loss.
@@ -878,10 +880,10 @@ def main(_):
     pro_predict = tf.nn.softmax(logits,axis=-1)
     label_predict = tf.argmax(pro_predict,axis=-1)
 
-    logits_emb = tf.matmul(embed, nce_weights, transpose_b=True) + nce_biases
+    logits_emb = tf.matmul(embed, nce_weights1, transpose_b=True) + nce_biases
     pro_predict_emb = tf.nn.softmax(logits_emb, axis=-1)
     label_predict_emb = tf.argmax(pro_predict_emb, axis=-1)
-    logits_cls = tf.matmul(first_token_tensor, nce_weights, transpose_b=True) + nce_biases
+    logits_cls = tf.matmul(first_token_tensor, nce_weights0, transpose_b=True) + nce_biases
     pro_predict_cls = tf.nn.softmax(logits_cls, axis=-1)
     label_predict_cls = tf.argmax(pro_predict_cls, axis=-1)
 
