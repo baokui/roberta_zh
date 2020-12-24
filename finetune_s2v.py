@@ -861,12 +861,12 @@ def main(_):
     first_token_tensor = tf.reduce_mean(sequence_output, axis=1)
     embeddings = model.get_embedding_table()
     embed = tf.nn.embedding_lookup(embeddings, word_inputs)
-    #feature = tf.concat([first_token_tensor, embed], axis=-1)
-    a = 0.01
-    feature = a*embed+(1-a)*first_token_tensor
+    feature = tf.concat([first_token_tensor, embed], axis=-1)
+    #a = 0.01
+    #feature = a*embed+(1-a)*first_token_tensor
     nce_weights = tf.Variable(
-        tf.truncated_normal([vocabulary_size, embedding_size],
-                            stddev=1.0 / math.sqrt(embedding_size)))
+        tf.truncated_normal([vocabulary_size, 2*embedding_size],
+                            stddev=1.0 / math.sqrt(2*embedding_size)))
     nce_biases = tf.Variable(tf.zeros([vocabulary_size]), dtype=tf.float32)
     # Compute the average NCE loss for the batch.
     # tf.nce_loss automatically draws a new sample of the negative labels each
