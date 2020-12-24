@@ -914,7 +914,7 @@ def main(_):
                         0.01 + len(label_predict_))
             acc_cls = sum([label_predict_cls_[j] == batch_word_labels[j][0] for j in range(len(label_predict_))]) / (
                     0.01 + len(label_predict_))
-            print('acc:%0.4f,%0.4f,%0.4f'%(acc,acc_emb,acc_emb))
+            print('acc:%0.4f,%0.4f,%0.4f'%(acc,acc_emb,acc_cls))
             #embed_,first_token_tensor_,feature_ = sess.run([embed,first_token_tensor,feature],feed_dict = feed_dict)
         data = next(iter)
 
