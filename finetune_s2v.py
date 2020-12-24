@@ -56,7 +56,7 @@ flags.DEFINE_string(
 ## Other parameters
 
 flags.DEFINE_string(
-    "init_checkpoint", "model/model_s2v/ckpt/model.ckpt-2400000",
+    "init_checkpoint", "model/model_s2v/ckpt/model.ckpt-2404000",
     "Initial checkpoint (usually from a pre-trained BERT model).")
 
 flags.DEFINE_bool(
