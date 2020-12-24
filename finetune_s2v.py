@@ -56,7 +56,7 @@ flags.DEFINE_string(
 ## Other parameters
 
 flags.DEFINE_string(
-    "init_checkpoint", "model/model_s2v/ckpt/model.ckpt-2404000",
+    "init_checkpoint", "model/model_s2v/ckpt_init/model.ckpt",
     "Initial checkpoint (usually from a pre-trained BERT model).")
 
 flags.DEFINE_bool(
@@ -861,7 +861,8 @@ def main(_):
     embeddings = model.get_embedding_table()
     embed = tf.nn.embedding_lookup(embeddings, word_inputs)
     #feature = tf.concat([first_token_tensor, embed], axis=-1)
-    feature = embed+first_token_tensor
+    a = 0.01
+    feature = a*embed+(1-a)*first_token_tensor
     nce_weights = tf.Variable(
         tf.truncated_normal([vocabulary_size, embedding_size],
                             stddev=1.0 / math.sqrt(embedding_size)))
@@ -890,11 +891,14 @@ def main(_):
     sess = tf.Session()
     sess.run(tf.global_variables_initializer())
     if FLAGS.init_checkpoint:
-        saver.restore(sess, FLAGS.init_checkpoint)
-        # tvars = tf.trainable_variables()
-        # (assignment_map, initialized_variable_names
-        #  ) = modeling.get_assignment_map_from_checkpoint(tvars, FLAGS.init_checkpoint)
-        # tf.train.init_from_checkpoint(FLAGS.init_checkpoint, assignment_map)
+        try:
+            tvars = tf.trainable_variables()
+            (assignment_map, initialized_variable_names
+             ) = modeling.get_assignment_map_from_checkpoint(tvars, FLAGS.init_checkpoint)
+            tf.train.init_from_checkpoint(FLAGS.init_checkpoint, assignment_map)
+        except:
+            saver.restore(sess, FLAGS.init_checkpoint)
+
     iter = iterData(FLAGS.data_dir, tokenizer, batch_size=FLAGS.train_batch_size,epochs=int(FLAGS.num_train_epochs))
     data = next(iter)
     while data!='__STOP__':
