@@ -56,7 +56,7 @@ flags.DEFINE_string(
 ## Other parameters
 
 flags.DEFINE_string(
-    "init_checkpoint", "model/model_s2v/ckpt1/model.ckpt-65000",
+    "init_checkpoint", "model/model_s2v/ckpt_init/model.ckpt",
     "Initial checkpoint (usually from a pre-trained BERT model).")
 
 flags.DEFINE_bool(
@@ -857,7 +857,8 @@ def main(_):
         token_type_ids=segment_ids,
         use_one_hot_embeddings=False)
     sequence_output = model.get_sequence_output()
-    first_token_tensor = tf.squeeze(sequence_output[:, 0:1, :], axis=1)
+    #first_token_tensor = tf.squeeze(sequence_output[:, 0:1, :], axis=1)
+    first_token_tensor = tf.reduce_mean(sequence_output, axis=1)
     embeddings = model.get_embedding_table()
     embed = tf.nn.embedding_lookup(embeddings, word_inputs)
     #feature = tf.concat([first_token_tensor, embed], axis=-1)
@@ -912,6 +913,10 @@ def main(_):
         if step % step_savemodel == 0:
             saver.save(sess, os.path.join(FLAGS.output_dir, 'model.ckpt'),
                        global_step=global_step)
+            # import random
+            # random.shuffle(batch_input_ids)
+            # feed_dict = {input_ids: batch_input_ids, input_mask: batch_input_mask, segment_ids: batch_segment_ids,
+            #              word_inputs: batch_word_inputs, word_labels: batch_word_labels}
             label_predict_,label_predict_emb_,label_predict_cls_ = sess.run([label_predict,label_predict_emb,label_predict_cls],feed_dict=feed_dict)
             acc = sum([label_predict_[j]==batch_word_labels[j][0] for j in range(len(label_predict_))])/(0.01+len(label_predict_))
             acc_emb = sum([label_predict_emb_[j] == batch_word_labels[j][0] for j in range(len(label_predict_))]) / (
