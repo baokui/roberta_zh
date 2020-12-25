@@ -1,4 +1,4 @@
-from finetune_s2v import sentEmb
+from finetune_s2v_2 import sentEmb
 import numpy as np
 from sklearn import preprocessing
 import json

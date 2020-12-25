@@ -958,6 +958,7 @@ def main(_):
 
 def sentEmb(S):
     embedding_size = 768
+    dim_cls = 256
     bert_config = modeling.BertConfig.from_json_file(FLAGS.bert_config_file)
     tokenizer = tokenization.FullTokenizer(
         vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
@@ -978,17 +979,35 @@ def sentEmb(S):
     sequence_output = model.get_sequence_output()
     #first_token_tensor = tf.squeeze(sequence_output[:, 0:1, :], axis=1)
     first_token_tensor = tf.reduce_mean(sequence_output, axis=1)
+    out1 = tf.layers.dense(first_token_tensor, units=dim_cls, activation=tf.nn.relu, name='fine_s2v_cls')
     embeddings = model.get_embedding_table()
     embed = tf.nn.embedding_lookup(embeddings, word_inputs)
-    output = {'sent2vec':first_token_tensor}
-    feature = embed + first_token_tensor
+    feature = tf.concat([out1, embed], axis=-1)
+    # a = 0.01
+    # feature = a*embed+(1-a)*first_token_tensor
     nce_weights = tf.Variable(
-        tf.truncated_normal([vocabulary_size, embedding_size],
-                            stddev=1.0 / math.sqrt(embedding_size)))
-    nce_biases = tf.Variable(tf.zeros([vocabulary_size]), dtype=tf.float32)
+        tf.truncated_normal([vocabulary_size, dim_cls + embedding_size],
+                            stddev=1.0 / math.sqrt(dim_cls + embedding_size)), name='fine_s2v_cce_w')
+    nce_biases = tf.Variable(tf.zeros([vocabulary_size]), dtype=tf.float32, name='fine_s2v_cce_b')
+    nce_weights0 = nce_weights[:, :dim_cls]
+    nce_weights1 = nce_weights[:, dim_cls:]
     # Compute the average NCE loss for the batch.
     # tf.nce_loss automatically draws a new sample of the negative labels each
     # time we evaluate the loss.
+    loss = tf.reduce_mean(
+        tf.nn.nce_loss(weights=nce_weights, biases=nce_biases, inputs=feature, labels=word_labels,
+                       num_sampled=num_sampled, num_classes=vocabulary_size))
+    logits = tf.matmul(feature, nce_weights, transpose_b=True) + nce_biases
+    pro_predict = tf.nn.softmax(logits, axis=-1)
+    label_predict = tf.argmax(pro_predict, axis=-1)
+
+    logits_emb = tf.matmul(embed, nce_weights1, transpose_b=True) + nce_biases
+    pro_predict_emb = tf.nn.softmax(logits_emb, axis=-1)
+    label_predict_emb = tf.argmax(pro_predict_emb, axis=-1)
+    logits_cls = tf.matmul(out1, nce_weights0, transpose_b=True) + nce_biases
+    pro_predict_cls = tf.nn.softmax(logits_cls, axis=-1)
+    label_predict_cls = tf.argmax(pro_predict_cls, axis=-1)
+    output = {'sent2vec':out1}
     saver = tf.train.Saver(max_to_keep=None)
     sess = tf.Session()
     module_file = tf.train.latest_checkpoint(FLAGS.output_dir)
