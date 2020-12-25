@@ -50,7 +50,7 @@ flags.DEFINE_string("vocab_file", "model/model_s2v/vocab.txt",
                     "The vocabulary file that the BERT model was trained on.")
 
 flags.DEFINE_string(
-    "output_dir", "model/model_s2v/ckpt1",
+    "output_dir", "model/model_s2v/ckpt2",
     "The output directory where the model checkpoints will be written.")
 
 ## Other parameters
@@ -949,7 +949,8 @@ def sentEmb(S):
         token_type_ids=segment_ids,
         use_one_hot_embeddings=False)
     sequence_output = model.get_sequence_output()
-    first_token_tensor = tf.squeeze(sequence_output[:, 0:1, :], axis=1)
+    #first_token_tensor = tf.squeeze(sequence_output[:, 0:1, :], axis=1)
+    first_token_tensor = tf.reduce_mean(sequence_output, axis=1)
     embeddings = model.get_embedding_table()
     embed = tf.nn.embedding_lookup(embeddings, word_inputs)
     output = {'sent2vec':first_token_tensor}
