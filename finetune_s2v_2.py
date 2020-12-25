@@ -994,9 +994,6 @@ def sentEmb(S):
     # Compute the average NCE loss for the batch.
     # tf.nce_loss automatically draws a new sample of the negative labels each
     # time we evaluate the loss.
-    loss = tf.reduce_mean(
-        tf.nn.nce_loss(weights=nce_weights, biases=nce_biases, inputs=feature, labels=word_labels,
-                       num_sampled=num_sampled, num_classes=vocabulary_size))
     logits = tf.matmul(feature, nce_weights, transpose_b=True) + nce_biases
     pro_predict = tf.nn.softmax(logits, axis=-1)
     label_predict = tf.argmax(pro_predict, axis=-1)
