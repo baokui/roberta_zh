@@ -838,7 +838,7 @@ def main(_):
                   print("------------")
                   print(time.time() - t0, " s")
                   t0 = time.time()
-                  print("loss,loss_lm,loss_flow is %0.4f,%0.4f,%0.4f", (sum / count,sum_lm/count,sum_flow/count))
+                  print("loss,loss_lm,loss_flow is %0.4f,%0.4f,%0.4f"%(sum / count,sum_lm/count,sum_flow/count))
                   sum = 0
                   count = 0
                   checkpoint_path = os.path.join(FLAGS.output_dir, 'model.ckpt')
