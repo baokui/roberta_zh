@@ -713,7 +713,20 @@ def main(_):
       # optimizer = optimization_gpu.create_optimizer(
       #     None, FLAGS.learning_rate, FLAGS.num_train_steps, FLAGS.num_warmup_steps, False)
       # optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate)
-
+      optimizer = AdamWeightDecayOptimizer(
+          learning_rate=FLAGS.learning_rate,
+          weight_decay_rate=0.01,
+          beta_1=0.9,
+          beta_2=0.999,
+          epsilon=1e-6,
+          exclude_from_weight_decay=["LayerNorm", "layer_norm", "bias"])
+      flow_optimizer = AdamWeightDecayOptimizer(
+          learning_rate=FLAGS.flow_learning_rate,  # learning_rate / init_lr *
+          weight_decay_rate=0.01,
+          beta_1=0.9,
+          beta_2=0.999,
+          epsilon=1e-6,
+          exclude_from_weight_decay=["LayerNorm", "layer_norm", "bias"])
       # calculate the gradients on each GPU
       tower_grads_lm = []
       tower_grads_flow = []
@@ -773,37 +786,30 @@ def main(_):
                   total_loss = masked_lm_loss+flow_loss_batch
                   models.append(model)
                   # get gradients
-                  tvars = [v for v in tf.trainable_variables() if not v.name.startswith("lm/flow")]
-                  grads = tf.gradients(masked_lm_loss, tvars)
+                  # tvars = [v for v in tf.trainable_variables() if not v.name.startswith("lm/flow")]
+                  grads = optimizer.compute_gradients(
+                      masked_lm_loss,
+                      aggregation_method=tf.AggregationMethod.EXPERIMENTAL_TREE,
+                  )
                   #(grads, _) = tf.clip_by_global_norm(grads, clip_norm=1.0)
                   tower_grads_lm.append(grads)
-                  flow_tvars = [v for v in tf.trainable_variables() if v.name.startswith("lm/flow")]
-                  flow_grads = tf.gradients(flow_loss_batch, flow_tvars)
+                  # flow_tvars = [v for v in tf.trainable_variables() if v.name.startswith("lm/flow")]
+                  # flow_grads = tf.gradients(flow_loss_batch, flow_tvars)
                   #(flow_grads, _) = tf.clip_by_global_norm(flow_grads, clip_norm=1.0)
+                  flow_grads = flow_optimizer.compute_gradients(
+                      flow_loss_batch,
+                      aggregation_method=tf.AggregationMethod.EXPERIMENTAL_TREE,
+                  )
                   tower_grads_flow.append(flow_grads)
                   # keep track of loss across all GPUs
                   loss_print += total_loss
                   loss_print_lm += masked_lm_loss
                   loss_print_flow += flow_loss_batch
 
-      optimizer = AdamWeightDecayOptimizer(
-          learning_rate=FLAGS.learning_rate,
-          weight_decay_rate=0.01,
-          beta_1=0.9,
-          beta_2=0.999,
-          epsilon=1e-6,
-          exclude_from_weight_decay=["LayerNorm", "layer_norm", "bias"])
       average_grads_lm = average_gradients(tower_grads_lm, None, None)
       average_grads_lm, norm_summary_ops = clip_grads(average_grads_lm, 10.0, True)
       train_op = optimizer.apply_gradients(average_grads_lm)
 
-      flow_optimizer = AdamWeightDecayOptimizer(
-          learning_rate=FLAGS.flow_learning_rate,  # learning_rate / init_lr *
-          weight_decay_rate=0.01,
-          beta_1=0.9,
-          beta_2=0.999,
-          epsilon=1e-6,
-          exclude_from_weight_decay=["LayerNorm", "layer_norm", "bias"])
       average_grads_flow = average_gradients(tower_grads_flow, None, None)
       average_grads_flow, norm_summary_ops = clip_grads(average_grads_flow, 10.0, True)
       flow_train_op = flow_optimizer.apply_gradients(average_grads_flow)
