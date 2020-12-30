@@ -767,6 +767,7 @@ def main(_):
               if checkpoint_path:
                   (assignment_map, initialized_variable_names
                    ) = modeling.get_assignment_map_from_checkpoint(tvars, checkpoint_path)
+                  print("assignment_map",assignment_map)
                   tf.train.init_from_checkpoint(checkpoint_path, assignment_map)
               tf.logging.info("**** Trainable Variables ****")
               for var in tvars:

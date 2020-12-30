@@ -186,3 +186,17 @@ nohup python -u run_pretraining.py \
   --learning_rate=1e-4  \
   --tpu_name=123  \
   --save_checkpoints_steps=3000  >> log/pretrain-bert_aiwriter.log 2>&1 &
+
+
+BERT_BASE_DIR=model/bert_allScene48
+my_new_model_path=$BERT_BASE_DIR/ckpt_finetune
+init_checkpoint=$BERT_BASE_DIR/ckpt/model.ckpt
+mkdir -p $my_new_model_path
+max_seq_length=48
+export CUDA_VISIBLE_DEVICES="2,3,4,5"
+files=data_prose/tfrecord48/raw.tfrecord
+nohup python -u run_pretraining_mGPU.py --input_file=$files  --n_gpus=4 \
+--output_dir=$my_new_model_path --do_train=True --do_eval=True --bert_config_file=$BERT_BASE_DIR/bert_config.json \
+--train_batch_size=64 --max_seq_length=$max_seq_length --max_predictions_per_seq=2 \
+--num_train_steps=2000000 --num_warmup_steps=10000 --learning_rate=1e-4  --tpu_name=123  \
+--save_checkpoints_steps=3000 --init_checkpoint=>> log/pretrain-bert_allScene48.log 2>&1 &

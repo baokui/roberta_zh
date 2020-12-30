@@ -159,7 +159,7 @@ nohup python -u sentEmb_s2v.py $gpu $path_data $path_target $tag >> log/sent-$ta
 
 
 
-File=Queries1
+File=Docs
 gpu=2
 tag=allScenePre48-weightedmean
 path_data="/search/odin/guobk/vpa/vpa-studio-research/retrieval/data/$File.json"
