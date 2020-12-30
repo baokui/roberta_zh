@@ -842,6 +842,7 @@ def sentEmb(S,bert_config_file,vocab_file,init_checkpoint,max_seq_length = FLAGS
     tvars = tf.trainable_variables()
     (assignment_map, initialized_variable_names
      ) = modeling.get_assignment_map_from_checkpoint(tvars, init_checkpoint)
+    print("tarvs",tvars)
     print("assignment_map",assignment_map)
     tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
     sess = tf.Session()
