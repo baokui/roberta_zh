@@ -828,6 +828,28 @@ def sentEmb_tianchi(S,bert_config_file,vocab_file,init_checkpoint,max_seq_length
         y = sess.run(probabilities, feed_dict=feed_dict)[0]
         T.append([i,S[i], y])
     return T
+def get_assignment_map_from_checkpoint(tvars, init_checkpoint):
+  import re
+  """Compute the union of the current variables and checkpoint variables."""
+  assignment_map = {}
+  initialized_variable_names = {}
+  name_to_variable = collections.OrderedDict()
+  for var in tvars:
+    name = var.name
+    m = re.match("^(.*):\\d+$", name)
+    if m is not None:
+      name = m.group(1)
+    name_to_variable[name] = var
+  init_vars = tf.train.list_variables(init_checkpoint)
+  assignment_map = collections.OrderedDict()
+  for x in init_vars:
+    (name, var) = (x[0], x[1])
+    if name[3:] not in name_to_variable:
+      continue
+    assignment_map[name] = name[3:]
+    initialized_variable_names[name] = 1
+    initialized_variable_names[name + ":0"] = 1
+  return (assignment_map, initialized_variable_names)
 def sentEmb(S,bert_config_file,vocab_file,init_checkpoint,max_seq_length = FLAGS.max_seq_length):
     bert_config = modeling.BertConfig.from_json_file(bert_config_file)
     tokenizer = tokenization.FullTokenizer(
@@ -842,6 +864,9 @@ def sentEmb(S,bert_config_file,vocab_file,init_checkpoint,max_seq_length = FLAGS
     tvars = tf.trainable_variables()
     (assignment_map, initialized_variable_names
      ) = modeling.get_assignment_map_from_checkpoint(tvars, init_checkpoint)
+    if len(assignment_map)==0:
+        (assignment_map, initialized_variable_names
+         ) = get_assignment_map_from_checkpoint(tvars, init_checkpoint)
     init_vars = tf.train.list_variables(init_checkpoint)
     print("tarvs",tvars)
     print("init_vars",init_vars)
