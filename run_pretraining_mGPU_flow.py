@@ -771,11 +771,10 @@ def main(_):
                       embedding = tf.identity(tf.squeeze(flow_model.z, [1, 2]))
                   ##################
                   total_loss = masked_lm_loss+flow_loss_batch
-                  loss = total_loss
                   models.append(model)
                   # get gradients
                   tvars = [v for v in tf.trainable_variables() if not v.name.startswith("lm/flow")]
-                  grads = tf.gradients(loss, tvars)
+                  grads = tf.gradients(masked_lm_loss, tvars)
                   #(grads, _) = tf.clip_by_global_norm(grads, clip_norm=1.0)
                   tower_grads_lm.append(grads)
                   flow_tvars = [v for v in tf.trainable_variables() if v.name.startswith("lm/flow")]
@@ -783,7 +782,7 @@ def main(_):
                   #(flow_grads, _) = tf.clip_by_global_norm(flow_grads, clip_norm=1.0)
                   tower_grads_flow.append(flow_grads)
                   # keep track of loss across all GPUs
-                  loss_print += loss
+                  loss_print += total_loss
                   loss_print_lm += masked_lm_loss
                   loss_print_flow += flow_loss_batch
 
