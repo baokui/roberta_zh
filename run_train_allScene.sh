@@ -207,7 +207,7 @@ my_new_model_path=$BERT_BASE_DIR/ckpt_flow
 init_checkpoint=$BERT_BASE_DIR/ckpt/model.ckpt
 mkdir -p $my_new_model_path
 max_seq_length=48
-export CUDA_VISIBLE_DEVICES="6,7"
+export CUDA_VISIBLE_DEVICES="7"
 filelist=`ls data_allScene_pretrain/tfrecord48/`
 array=($filelist)
 files=data_allScene_pretrain/tfrecord48/${array[0]}
@@ -215,7 +215,7 @@ for((i=1;i<${#array[@]};i++))
 do
   files=$files,data_allScene_pretrain/tfrecord48/${array[i]}
 done
-nohup python -u run_pretraining_mGPU_flow.py --input_file=$files  --n_gpus=2 \
+nohup python -u run_pretraining_mGPU_flow.py --input_file=$files  --n_gpus=1 \
 --output_dir=$my_new_model_path --do_train=True --do_eval=True --bert_config_file=$BERT_BASE_DIR/bert_config.json \
 --train_batch_size=64 --max_seq_length=$max_seq_length --max_predictions_per_seq=2 \
 --num_train_steps=2000000 --num_warmup_steps=10000 --learning_rate=1e-4  --tpu_name=123  \

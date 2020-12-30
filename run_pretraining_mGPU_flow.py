@@ -806,11 +806,13 @@ def main(_):
                   loss_print_lm += masked_lm_loss
                   loss_print_flow += flow_loss_batch
 
-      average_grads_lm = average_gradients(tower_grads_lm, None, None)
+      #average_grads_lm = average_gradients(tower_grads_lm, None, None)
+      average_grads_lm = tower_grads_lm[0]
       average_grads_lm, norm_summary_ops = clip_grads(average_grads_lm, 10.0, True)
       train_op = optimizer.apply_gradients(average_grads_lm)
 
-      average_grads_flow = average_gradients(tower_grads_flow, None, None)
+      #average_grads_flow = average_gradients(tower_grads_flow, None, None)
+      average_grads_flow = tower_grads_flow[0]
       average_grads_flow, norm_summary_ops = clip_grads(average_grads_flow, 10.0, True)
       flow_train_op = flow_optimizer.apply_gradients(average_grads_flow)
 
