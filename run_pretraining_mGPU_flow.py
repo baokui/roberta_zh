@@ -730,7 +730,6 @@ def main(_):
       # calculate the gradients on each GPU
       tower_grads_lm = []
       tower_grads_flow = []
-      models = []
       loss_print = tf.get_variable(
           'train_perplexity', [],
           initializer=tf.constant_initializer(0.0), trainable=False)
@@ -740,87 +739,68 @@ def main(_):
       loss_print_flow = tf.get_variable(
           'train_perplexity_flow', [],
           initializer=tf.constant_initializer(0.0), trainable=False)
-      for k in range(n_gpus):
-          with tf.device('/gpu:%d' % k):
-              with tf.variable_scope('lm', reuse=k > 0):
-                  # calculate the loss for one model replica and get
-                  #   lstm states
-                  input_ids = input_ids_list[k]
-                  input_mask = input_mask_list[k]
-                  segment_ids = segment_ids_list[k]
-                  masked_lm_positions = masked_lm_positions_list[k]
-                  masked_lm_ids = masked_lm_ids_list[k]
-                  masked_lm_weights = masked_lm_weights_list[k]
-                  #next_sentence_labels = next_sentence_labels_list[k]
-                  is_training = (mode == tf.estimator.ModeKeys.TRAIN)
-                  model = modeling.BertModel(
-                      config=bert_config,
-                      is_training=is_training,
-                      input_ids=input_ids,
-                      input_mask=input_mask,
-                      token_type_ids=segment_ids,
-                      use_one_hot_embeddings=use_one_hot_embeddings)
-                  (masked_lm_loss,
-                   masked_lm_example_loss, masked_lm_log_probs) = get_masked_lm_output(
-                      bert_config, model.get_sequence_output(), model.get_embedding_table(),
-                      masked_lm_positions, masked_lm_ids, masked_lm_weights)
-                  # flow loss
-                  flow_loss_batch = 0
-                  if FLAGS.flow:
-                      pooled = 0
-                      n_last = int(FLAGS.sentence_embedding_type[-1])
-                      input_mask_ = tf.cast(tf.expand_dims(input_mask, axis=-1), dtype=tf.float32)
-                      for i in range(n_last):
-                          sequence = model.all_encoder_layers[-i]  # [batch_size, seq_length, hidden_size]
-                          pooled += tf.reduce_sum(sequence * input_mask_, axis=1) / tf.reduce_sum(input_mask_, axis=1)
-                      pooled /= float(n_last)
-                      # load model and train config
-                      with open(os.path.join("./flow/config", FLAGS.flow_model_config + ".json"), 'r') as jp:
-                          flow_model_config = AttrDict(json.load(jp))
-                      flow_model_config.is_training = is_training
-                      flow_model = Glow(flow_model_config)
-                      flow_loss_example = flow_model.body(pooled, is_training)  # no l2 normalization here any more
-                      flow_loss_batch = tf.math.reduce_mean(flow_loss_example)
-                      embedding = tf.identity(tf.squeeze(flow_model.z, [1, 2]))
-                  ##################
-                  total_loss = masked_lm_loss+flow_loss_batch
-                  models.append(model)
-                  # get gradients
-                  # tvars = [v for v in tf.trainable_variables() if not v.name.startswith("lm/flow")]
-                  grads = optimizer.compute_gradients(
-                      masked_lm_loss,
-                      aggregation_method=tf.AggregationMethod.EXPERIMENTAL_TREE,
-                  )
-                  #(grads, _) = tf.clip_by_global_norm(grads, clip_norm=1.0)
-                  tower_grads_lm.append(grads)
-                  # flow_tvars = [v for v in tf.trainable_variables() if v.name.startswith("lm/flow")]
-                  # flow_grads = tf.gradients(flow_loss_batch, flow_tvars)
-                  #(flow_grads, _) = tf.clip_by_global_norm(flow_grads, clip_norm=1.0)
-                  flow_grads = flow_optimizer.compute_gradients(
-                      flow_loss_batch,
-                      aggregation_method=tf.AggregationMethod.EXPERIMENTAL_TREE,
-                  )
-                  tower_grads_flow.append(flow_grads)
-                  # keep track of loss across all GPUs
-                  loss_print += total_loss
-                  loss_print_lm += masked_lm_loss
-                  loss_print_flow += flow_loss_batch
+      k = 0
+      global_step = tf.train.get_or_create_global_step()
+      with tf.device('/gpu:%d' % k):
+          with tf.variable_scope('lm', reuse=k > 0):
+              # calculate the loss for one model replica and get
+              #   lstm states
+              input_ids = input_ids_list[k]
+              input_mask = input_mask_list[k]
+              segment_ids = segment_ids_list[k]
+              masked_lm_positions = masked_lm_positions_list[k]
+              masked_lm_ids = masked_lm_ids_list[k]
+              masked_lm_weights = masked_lm_weights_list[k]
+              #next_sentence_labels = next_sentence_labels_list[k]
+              is_training = (mode == tf.estimator.ModeKeys.TRAIN)
+              model = modeling.BertModel(
+                  config=bert_config,
+                  is_training=is_training,
+                  input_ids=input_ids,
+                  input_mask=input_mask,
+                  token_type_ids=segment_ids,
+                  use_one_hot_embeddings=use_one_hot_embeddings)
+              (masked_lm_loss,
+               masked_lm_example_loss, masked_lm_log_probs) = get_masked_lm_output(
+                  bert_config, model.get_sequence_output(), model.get_embedding_table(),
+                  masked_lm_positions, masked_lm_ids, masked_lm_weights)
+              # flow loss
+              flow_loss_batch = 0
+              if FLAGS.flow:
+                  pooled = 0
+                  n_last = int(FLAGS.sentence_embedding_type[-1])
+                  input_mask_ = tf.cast(tf.expand_dims(input_mask, axis=-1), dtype=tf.float32)
+                  for i in range(n_last):
+                      sequence = model.all_encoder_layers[-i]  # [batch_size, seq_length, hidden_size]
+                      pooled += tf.reduce_sum(sequence * input_mask_, axis=1) / tf.reduce_sum(input_mask_, axis=1)
+                  pooled /= float(n_last)
+                  # load model and train config
+                  with open(os.path.join("./flow/config", FLAGS.flow_model_config + ".json"), 'r') as jp:
+                      flow_model_config = AttrDict(json.load(jp))
+                  flow_model_config.is_training = is_training
+                  flow_model = Glow(flow_model_config)
+                  flow_loss_example = flow_model.body(pooled, is_training)  # no l2 normalization here any more
+                  flow_loss_batch = tf.math.reduce_mean(flow_loss_example)
+                  embedding = tf.identity(tf.squeeze(flow_model.z, [1, 2]))
+              ##################
+              total_loss = masked_lm_loss+flow_loss_batch
+      tvars = [v for v in tf.trainable_variables() if not v.name.startswith("lm/flow")]
+      grads = tf.gradients(masked_lm_loss, tvars)
+      (grads, _) = tf.clip_by_global_norm(grads, clip_norm=1.0)
+      train_op = optimizer.apply_gradients(
+          zip(grads, tvars), global_step=global_step)
 
-      #average_grads_lm = average_gradients(tower_grads_lm, None, None)
-      average_grads_lm = tower_grads_lm[0]
-      average_grads_lm, norm_summary_ops = clip_grads(average_grads_lm, 10.0, True)
-      train_op = optimizer.apply_gradients(average_grads_lm)
+      flow_tvars = [v for v in tf.trainable_variables() if v.name.startswith("lm/flow")]
+      flow_grads = tf.gradients(flow_loss_batch, flow_tvars)
+      (flow_grads, _) = tf.clip_by_global_norm(flow_grads, clip_norm=1.0)
+      flow_train_op = flow_optimizer.apply_gradients(
+          zip(flow_grads, flow_tvars), global_step=global_step)
 
-      #average_grads_flow = average_gradients(tower_grads_flow, None, None)
-      average_grads_flow = tower_grads_flow[0]
-      average_grads_flow, norm_summary_ops = clip_grads(average_grads_flow, 10.0, True)
-      flow_train_op = flow_optimizer.apply_gradients(average_grads_flow)
+      new_global_step = global_step + 1
+      train_op = tf.group(train_op, flow_train_op, [global_step.assign(new_global_step)])
 
-      loss_print = loss_print / n_gpus
-      #train_op = optimizer.apply_gradients(average_grads)
-      train_op = tf.group(train_op, flow_train_op)
       init = tf.global_variables_initializer()
-      saver = tf.train.Saver(tf.global_variables(), max_to_keep=2)
+      saver = tf.train.Saver(tf.global_variables(), max_to_keep=10)
       with tf.Session(config=tf.ConfigProto(
               allow_soft_placement=True)) as sess:
           sess.run(init)
@@ -875,7 +855,7 @@ def main(_):
                   sum = 0
                   count = 0
                   checkpoint_path = os.path.join(FLAGS.output_dir, 'model.ckpt')
-                  saver.save(sess, checkpoint_path)
+                  saver.save(sess, checkpoint_path,global_step=global_step)
 
 
 
