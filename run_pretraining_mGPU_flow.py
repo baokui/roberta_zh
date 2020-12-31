@@ -849,6 +849,7 @@ def main(_):
               try:
                 #_, loss_print_, loss_print_lm_,loss_print_flow_ = sess.run([train_op, total_loss,masked_lm_loss,flow_loss_batch])
                 _, loss_print_, loss_print_lm_ = sess.run([train_op, total_loss, masked_lm_loss])
+                print(loss_print_,loss_print_lm_)
                 loss_print_flow_ = 0
               except:
                 sess.run(iterator.initializer)
