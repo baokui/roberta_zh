@@ -791,7 +791,7 @@ def main(_):
           masked_lm_loss,
           aggregation_method=tf.AggregationMethod.EXPERIMENTAL_TREE,
       )
-      (grads, _) = tf.clip_by_global_norm(grads, clip_norm=10.0)
+      (grads, _) = tf.clip_by_global_norm(grads, 10.0,True)
       train_op = optimizer.apply_gradients(grads, global_step=global_step)
       # train_op = optimizer.apply_gradients(
       #     zip(grads, tvars), global_step=global_step)
