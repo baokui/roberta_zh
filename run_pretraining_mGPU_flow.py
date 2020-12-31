@@ -846,10 +846,10 @@ def main(_):
           sum_lm = 0
           sum_flow = 0
           while True:
-              _, loss_print_, loss_print_lm_ = sess.run([train_op, total_loss, masked_lm_loss])
               try:
                 #_, loss_print_, loss_print_lm_,loss_print_flow_ = sess.run([train_op, total_loss,masked_lm_loss,flow_loss_batch])
                 _, loss_print_, loss_print_lm_ = sess.run([train_op, total_loss, masked_lm_loss])
+                loss_print_flow_ = 0
               except:
                 sess.run(iterator.initializer)
                 print('Iterator initialized')
