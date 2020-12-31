@@ -713,13 +713,14 @@ def main(_):
       # optimizer = optimization_gpu.create_optimizer(
       #     None, FLAGS.learning_rate, FLAGS.num_train_steps, FLAGS.num_warmup_steps, False)
       # optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate)
-      optimizer = AdamWeightDecayOptimizer(
-          learning_rate=FLAGS.learning_rate,
-          weight_decay_rate=0.01,
-          beta_1=0.9,
-          beta_2=0.999,
-          epsilon=1e-6,
-          exclude_from_weight_decay=["LayerNorm", "layer_norm", "bias"])
+      # optimizer = AdamWeightDecayOptimizer(
+      #     learning_rate=FLAGS.learning_rate,
+      #     weight_decay_rate=0.01,
+      #     beta_1=0.9,
+      #     beta_2=0.999,
+      #     epsilon=1e-6,
+      #     exclude_from_weight_decay=["LayerNorm", "layer_norm", "bias"])
+      optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate)
       flow_optimizer = AdamWeightDecayOptimizer(
           learning_rate=FLAGS.flow_learning_rate,  # learning_rate / init_lr *
           weight_decay_rate=0.01,
@@ -785,10 +786,15 @@ def main(_):
               ##################
               total_loss = masked_lm_loss+flow_loss_batch
       tvars = [v for v in tf.trainable_variables() if not v.name.startswith("lm/flow")]
-      grads = tf.gradients(masked_lm_loss, tvars)
-      (grads, _) = tf.clip_by_global_norm(grads, clip_norm=1.0)
-      train_op = optimizer.apply_gradients(
-          zip(grads, tvars), global_step=global_step)
+      #grads = tf.gradients(masked_lm_loss, tvars)
+      grads = optimizer.compute_gradients(
+          masked_lm_loss,
+          aggregation_method=tf.AggregationMethod.EXPERIMENTAL_TREE,
+      )
+      (grads, _) = tf.clip_by_global_norm(grads, clip_norm=10.0)
+      train_op = optimizer.apply_gradients(grads, global_step=global_step)
+      # train_op = optimizer.apply_gradients(
+      #     zip(grads, tvars), global_step=global_step)
 
       flow_tvars = [v for v in tf.trainable_variables() if v.name.startswith("lm/flow")]
       flow_grads = tf.gradients(flow_loss_batch, flow_tvars)
