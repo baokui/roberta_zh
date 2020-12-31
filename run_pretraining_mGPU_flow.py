@@ -804,7 +804,8 @@ def main(_):
           zip(flow_grads, flow_tvars), global_step=global_step)
 
       new_global_step = global_step + 1
-      train_op = tf.group(train_op, flow_train_op, [global_step.assign(new_global_step)])
+      #train_op = tf.group(train_op, flow_train_op, [global_step.assign(new_global_step)])
+      train_op = tf.group(train_op, [global_step.assign(new_global_step)])
 
       init = tf.global_variables_initializer()
       saver = tf.train.Saver(tf.global_variables(), max_to_keep=10)
