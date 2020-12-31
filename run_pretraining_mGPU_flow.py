@@ -767,22 +767,22 @@ def main(_):
                   masked_lm_positions, masked_lm_ids, masked_lm_weights)
               # flow loss
               flow_loss_batch = 0
-              if FLAGS.flow:
-                  pooled = 0
-                  n_last = int(FLAGS.sentence_embedding_type[-1])
-                  input_mask_ = tf.cast(tf.expand_dims(input_mask, axis=-1), dtype=tf.float32)
-                  for i in range(n_last):
-                      sequence = model.all_encoder_layers[-i]  # [batch_size, seq_length, hidden_size]
-                      pooled += tf.reduce_sum(sequence * input_mask_, axis=1) / tf.reduce_sum(input_mask_, axis=1)
-                  pooled /= float(n_last)
-                  # load model and train config
-                  with open(os.path.join("./flow/config", FLAGS.flow_model_config + ".json"), 'r') as jp:
-                      flow_model_config = AttrDict(json.load(jp))
-                  flow_model_config.is_training = is_training
-                  flow_model = Glow(flow_model_config)
-                  flow_loss_example = flow_model.body(pooled, is_training)  # no l2 normalization here any more
-                  flow_loss_batch = tf.math.reduce_mean(flow_loss_example)
-                  embedding = tf.identity(tf.squeeze(flow_model.z, [1, 2]))
+              # if FLAGS.flow:
+              #     pooled = 0
+              #     n_last = int(FLAGS.sentence_embedding_type[-1])
+              #     input_mask_ = tf.cast(tf.expand_dims(input_mask, axis=-1), dtype=tf.float32)
+              #     for i in range(n_last):
+              #         sequence = model.all_encoder_layers[-i]  # [batch_size, seq_length, hidden_size]
+              #         pooled += tf.reduce_sum(sequence * input_mask_, axis=1) / tf.reduce_sum(input_mask_, axis=1)
+              #     pooled /= float(n_last)
+              #     # load model and train config
+              #     with open(os.path.join("./flow/config", FLAGS.flow_model_config + ".json"), 'r') as jp:
+              #         flow_model_config = AttrDict(json.load(jp))
+              #     flow_model_config.is_training = is_training
+              #     flow_model = Glow(flow_model_config)
+              #     flow_loss_example = flow_model.body(pooled, is_training)  # no l2 normalization here any more
+              #     flow_loss_batch = tf.math.reduce_mean(flow_loss_example)
+              #     embedding = tf.identity(tf.squeeze(flow_model.z, [1, 2]))
               ##################
               total_loss = masked_lm_loss+flow_loss_batch
       tvars = [v for v in tf.trainable_variables() if not v.name.startswith("lm/flow")]
@@ -799,11 +799,11 @@ def main(_):
       # train_op = optimizer.apply_gradients(
       #     zip(grads, tvars), global_step=global_step)
 
-      flow_tvars = [v for v in tf.trainable_variables() if v.name.startswith("lm/flow")]
-      flow_grads = tf.gradients(flow_loss_batch, flow_tvars)
-      (flow_grads, _) = tf.clip_by_global_norm(flow_grads, clip_norm=1.0)
-      flow_train_op = flow_optimizer.apply_gradients(
-          zip(flow_grads, flow_tvars), global_step=global_step)
+      # flow_tvars = [v for v in tf.trainable_variables() if v.name.startswith("lm/flow")]
+      # flow_grads = tf.gradients(flow_loss_batch, flow_tvars)
+      # (flow_grads, _) = tf.clip_by_global_norm(flow_grads, clip_norm=1.0)
+      # flow_train_op = flow_optimizer.apply_gradients(
+      #     zip(flow_grads, flow_tvars), global_step=global_step)
 
       new_global_step = global_step + 1
       #train_op = tf.group(train_op, flow_train_op, [global_step.assign(new_global_step)])
