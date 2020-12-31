@@ -484,10 +484,8 @@ def input_fn(input_files,
     return d
 def parse_input_fn_result(result):
     """Gets features, labels, and hooks from the result of an Estimator input_fn.
-
     Args:
       result: output of an input_fn to an estimator, which should be one of:
-
         * A 'tf.data.Dataset' object: Outputs of `Dataset` object must be a
             tuple (features, labels) with same constraints as below.
         * A tuple (features, labels): Where `features` is a `Tensor` or a
@@ -495,12 +493,10 @@ def parse_input_fn_result(result):
           `Tensor` or a dictionary of string label name to `Tensor`. Both
           `features` and `labels` are consumed by `model_fn`. They should
           satisfy the expectation of `model_fn` from inputs.
-
     Returns:
       Tuple of features, labels, and input_hooks, where features are as described
       above, labels are as described above or None, and input_hooks are a list
       of SessionRunHooks to be included when running.
-
     Raises:
       ValueError: if the result is a list or tuple of length != 2.
     """
@@ -713,14 +709,13 @@ def main(_):
       # optimizer = optimization_gpu.create_optimizer(
       #     None, FLAGS.learning_rate, FLAGS.num_train_steps, FLAGS.num_warmup_steps, False)
       # optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate)
-      # optimizer = AdamWeightDecayOptimizer(
-      #     learning_rate=FLAGS.learning_rate,
-      #     weight_decay_rate=0.01,
-      #     beta_1=0.9,
-      #     beta_2=0.999,
-      #     epsilon=1e-6,
-      #     exclude_from_weight_decay=["LayerNorm", "layer_norm", "bias"])
-      optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate)
+      optimizer = AdamWeightDecayOptimizer(
+          learning_rate=FLAGS.learning_rate,
+          weight_decay_rate=0.01,
+          beta_1=0.9,
+          beta_2=0.999,
+          epsilon=1e-6,
+          exclude_from_weight_decay=["LayerNorm", "layer_norm", "bias"])
       flow_optimizer = AdamWeightDecayOptimizer(
           learning_rate=FLAGS.flow_learning_rate,  # learning_rate / init_lr *
           weight_decay_rate=0.01,
@@ -767,47 +762,38 @@ def main(_):
                   masked_lm_positions, masked_lm_ids, masked_lm_weights)
               # flow loss
               flow_loss_batch = 0
-              # if FLAGS.flow:
-              #     pooled = 0
-              #     n_last = int(FLAGS.sentence_embedding_type[-1])
-              #     input_mask_ = tf.cast(tf.expand_dims(input_mask, axis=-1), dtype=tf.float32)
-              #     for i in range(n_last):
-              #         sequence = model.all_encoder_layers[-i]  # [batch_size, seq_length, hidden_size]
-              #         pooled += tf.reduce_sum(sequence * input_mask_, axis=1) / tf.reduce_sum(input_mask_, axis=1)
-              #     pooled /= float(n_last)
-              #     # load model and train config
-              #     with open(os.path.join("./flow/config", FLAGS.flow_model_config + ".json"), 'r') as jp:
-              #         flow_model_config = AttrDict(json.load(jp))
-              #     flow_model_config.is_training = is_training
-              #     flow_model = Glow(flow_model_config)
-              #     flow_loss_example = flow_model.body(pooled, is_training)  # no l2 normalization here any more
-              #     flow_loss_batch = tf.math.reduce_mean(flow_loss_example)
-              #     embedding = tf.identity(tf.squeeze(flow_model.z, [1, 2]))
+              if FLAGS.flow:
+                  pooled = 0
+                  n_last = int(FLAGS.sentence_embedding_type[-1])
+                  input_mask_ = tf.cast(tf.expand_dims(input_mask, axis=-1), dtype=tf.float32)
+                  for i in range(n_last):
+                      sequence = model.all_encoder_layers[-i]  # [batch_size, seq_length, hidden_size]
+                      pooled += tf.reduce_sum(sequence * input_mask_, axis=1) / tf.reduce_sum(input_mask_, axis=1)
+                  pooled /= float(n_last)
+                  # load model and train config
+                  with open(os.path.join("./flow/config", FLAGS.flow_model_config + ".json"), 'r') as jp:
+                      flow_model_config = AttrDict(json.load(jp))
+                  flow_model_config.is_training = is_training
+                  flow_model = Glow(flow_model_config)
+                  flow_loss_example = flow_model.body(pooled, is_training)  # no l2 normalization here any more
+                  flow_loss_batch = tf.math.reduce_mean(flow_loss_example)
+                  embedding = tf.identity(tf.squeeze(flow_model.z, [1, 2]))
               ##################
               total_loss = masked_lm_loss+flow_loss_batch
       tvars = [v for v in tf.trainable_variables() if not v.name.startswith("lm/flow")]
-      #grads = tf.gradients(masked_lm_loss, tvars)
-      grads = optimizer.compute_gradients(
-          masked_lm_loss,
-          aggregation_method=tf.AggregationMethod.EXPERIMENTAL_TREE,
-      )
-      average_grads = average_gradients([grads], None, None)
-      average_grads, norm_summary_ops = clip_grads(average_grads, 10.0, True)
-      #(grads, _) = tf.clip_by_global_norm(grads, 10.0,True)
-      #grads, norm_summary_ops = clip_grads(grads, 10.0, True)
-      train_op = optimizer.apply_gradients(average_grads, global_step=global_step)
-      # train_op = optimizer.apply_gradients(
-      #     zip(grads, tvars), global_step=global_step)
+      grads = tf.gradients(masked_lm_loss, tvars)
+      (grads, _) = tf.clip_by_global_norm(grads, clip_norm=1.0)
+      train_op = optimizer.apply_gradients(
+          zip(grads, tvars), global_step=global_step)
 
-      # flow_tvars = [v for v in tf.trainable_variables() if v.name.startswith("lm/flow")]
-      # flow_grads = tf.gradients(flow_loss_batch, flow_tvars)
-      # (flow_grads, _) = tf.clip_by_global_norm(flow_grads, clip_norm=1.0)
-      # flow_train_op = flow_optimizer.apply_gradients(
-      #     zip(flow_grads, flow_tvars), global_step=global_step)
+      flow_tvars = [v for v in tf.trainable_variables() if v.name.startswith("lm/flow")]
+      flow_grads = tf.gradients(flow_loss_batch, flow_tvars)
+      (flow_grads, _) = tf.clip_by_global_norm(flow_grads, clip_norm=1.0)
+      flow_train_op = flow_optimizer.apply_gradients(
+          zip(flow_grads, flow_tvars), global_step=global_step)
 
       new_global_step = global_step + 1
-      #train_op = tf.group(train_op, flow_train_op, [global_step.assign(new_global_step)])
-      train_op = tf.group(train_op, [global_step.assign(new_global_step)])
+      train_op = tf.group(train_op, flow_train_op, [global_step.assign(new_global_step)])
 
       init = tf.global_variables_initializer()
       saver = tf.train.Saver(tf.global_variables(), max_to_keep=10)
@@ -847,10 +833,7 @@ def main(_):
           sum_flow = 0
           while True:
               try:
-                #_, loss_print_, loss_print_lm_,loss_print_flow_ = sess.run([train_op, total_loss,masked_lm_loss,flow_loss_batch])
-                _, loss_print_, loss_print_lm_ = sess.run([train_op, total_loss, masked_lm_loss])
-                print(loss_print_,loss_print_lm_)
-                loss_print_flow_ = 0
+                _, loss_print_, loss_print_lm_,loss_print_flow_ = sess.run([train_op, total_loss,masked_lm_loss,flow_loss_batch])
               except:
                 sess.run(iterator.initializer)
                 print('Iterator initialized')
@@ -866,6 +849,8 @@ def main(_):
                   t0 = time.time()
                   print("loss,loss_lm,loss_flow is %0.4f,%0.4f,%0.4f"%(sum / count,sum_lm/count,sum_flow/count))
                   sum = 0
+                  sum_lm = 0
+                  sum_flow = 0
                   count = 0
                   checkpoint_path = os.path.join(FLAGS.output_dir, 'model.ckpt')
                   saver.save(sess, checkpoint_path,global_step=global_step)
