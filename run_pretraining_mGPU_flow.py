@@ -855,6 +855,99 @@ def main(_):
                   checkpoint_path = os.path.join(FLAGS.output_dir, 'model.ckpt')
                   saver.save(sess, checkpoint_path,global_step=global_step)
 
+def create_model(bert_config, is_training, input_ids, input_mask, segment_ids,
+                 labels, num_labels, use_one_hot_embeddings):
+  """Creates a classification model."""
+  model = modeling.BertModel(
+      config=bert_config,
+      is_training=is_training,
+      input_ids=input_ids,
+      input_mask=input_mask,
+      token_type_ids=segment_ids,
+      use_one_hot_embeddings=use_one_hot_embeddings)
+
+  # In the demo, we are doing a simple classification task on the entire
+  # segment.
+  #
+  # If you want to use the token-level output, use model.get_sequence_output()
+  # instead.
+  output_layer = model.get_pooled_output()
+
+  sequence_output = model.get_sequence_output()
+
+  hidden_size = output_layer.shape[-1].value
+
+  output_weights = tf.get_variable(
+      "output_weights", [num_labels, hidden_size],
+      initializer=tf.truncated_normal_initializer(stddev=0.02))
+
+  output_bias = tf.get_variable(
+      "output_bias", [num_labels], initializer=tf.zeros_initializer())
+
+  with tf.variable_scope("loss"):
+    if is_training:
+      # I.e., 0.1 dropout
+      output_layer = tf.nn.dropout(output_layer, keep_prob=0.9)
+
+    logits = tf.matmul(output_layer, output_weights, transpose_b=True)
+    logits = tf.nn.bias_add(logits, output_bias)
+    probabilities = tf.nn.softmax(logits, axis=-1)
+    log_probs = tf.nn.log_softmax(logits, axis=-1)
+
+    one_hot_labels = tf.one_hot(labels, depth=num_labels, dtype=tf.float32)
+
+    per_example_loss = -tf.reduce_sum(one_hot_labels * log_probs, axis=-1) # todo 08-29 try temp-loss
+    ###############bi_tempered_logistic_loss############################################################################
+    # print("##cross entropy loss is used...."); tf.logging.info("##cross entropy loss is used....")
+    # t1=0.9 #t1=0.90
+    # t2=1.05 #t2=1.05
+    # per_example_loss=bi_tempered_logistic_loss(log_probs,one_hot_labels,t1,t2,label_smoothing=0.1,num_iters=5) # TODO label_smoothing=0.0
+    #tf.logging.info("per_example_loss:"+str(per_example_loss.shape))
+    ##############bi_tempered_logistic_loss#############################################################################
+
+    loss = tf.reduce_mean(per_example_loss)
+
+    return (sequence_output,output_layer,loss, per_example_loss, logits, probabilities,model.all_encoder_layers)
+def sentEmb(S,bert_config_file,vocab_file,init_checkpoint,max_seq_length = FLAGS.max_seq_length):
+    import tokenization
+    bert_config = modeling.BertConfig.from_json_file(bert_config_file)
+    tokenizer = tokenization.FullTokenizer(
+        vocab_file=vocab_file, do_lower_case=FLAGS.do_lower_case)
+    label_list = ['0', '1']
+    tf.reset_default_graph()
+    input_ids = tf.placeholder(tf.int32, shape=[None, max_seq_length], name='input_ids')
+    input_mask = tf.placeholder(tf.int32, shape=[None, max_seq_length], name='input_mask')
+    segment_ids = tf.placeholder(tf.int32, shape=[None, max_seq_length], name='segment_ids')
+    labels = tf.placeholder(tf.int32, shape=[None, ], name='labels')
+    sequence_output, output_layer0, loss, per_example_loss, logits, probabilities, all_encoder_layers= create_model(bert_config, False,
+                                                                                                 input_ids, input_mask,
+                                                                                                 segment_ids, labels, 2,
+                                                                                                 False)
+    pooled = 0
+    n_last = int(FLAGS.sentence_embedding_type[-1])
+    input_mask_ = tf.cast(tf.expand_dims(input_mask, axis=-1), dtype=tf.float32)
+    for i in range(n_last):
+        sequence = all_encoder_layers[-i]  # [batch_size, seq_length, hidden_size]
+        pooled += tf.reduce_sum(sequence * input_mask_, axis=1) / tf.reduce_sum(input_mask_, axis=1)
+    pooled /= float(n_last)
+    # load model and train config
+    with open(os.path.join("./flow/config", FLAGS.flow_model_config + ".json"), 'r') as jp:
+        flow_model_config = AttrDict(json.load(jp))
+    flow_model_config.is_training = False
+    flow_model = Glow(flow_model_config)
+    flow_loss_example = flow_model.body(pooled, False)  # no l2 normalization here any more
+    embedding = tf.identity(tf.squeeze(flow_model.z, [1, 2]))
+    checkpoint_path = init_checkpoint
+    if checkpoint_path:
+        tvars = tf.trainable_variables()
+        initialized_variable_names = {}
+        print("init_checkpoint:", checkpoint_path)
+        print("trainable vars:", tvars)
+        if checkpoint_path:
+            (assignment_map, initialized_variable_names
+             ) = modeling.get_assignment_map_from_checkpoint(tvars, checkpoint_path)
+            print("assignment_map", assignment_map)
+            tf.train.init_from_checkpoint(checkpoint_path, assignment_map)
 
 
 if __name__ == "__main__":
