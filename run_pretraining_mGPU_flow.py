@@ -1089,7 +1089,6 @@ def convert_single_example(ex_index, example, label_list, max_seq_length,
       is_real_example=True)
   return feature
 def sentEmb(S,bert_config_file,vocab_file,path_checkpoint,max_seq_length = FLAGS.max_seq_length):
-    import tokenization
     label_list = ['0','1']
     bert_config = modeling.BertConfig.from_json_file(bert_config_file)
     tokenizer = tokenization.FullTokenizer(
@@ -1142,7 +1141,8 @@ def sentEmb(S,bert_config_file,vocab_file,path_checkpoint,max_seq_length = FLAGS
         T.append([i, S[i], y])
 
 if __name__ == "__main__":
-  flags.mark_flag_as_required("input_file")
-  flags.mark_flag_as_required("bert_config_file")
-  flags.mark_flag_as_required("output_dir")
-  tf.app.run()
+  # flags.mark_flag_as_required("input_file")
+  # flags.mark_flag_as_required("bert_config_file")
+  # flags.mark_flag_as_required("output_dir")
+  #tf.app.run()
+  main(0)
