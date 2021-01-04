@@ -26,7 +26,7 @@ import time
 import json
 from flow.glow_1x1 import AttrDict, Glow
 from optimization_bert_flow import AdamWeightDecayOptimizer
-
+import tokenization
 flags = tf.flags
 
 FLAGS = flags.FLAGS
@@ -908,12 +908,192 @@ def create_model(bert_config, is_training, input_ids, input_mask, segment_ids,
     loss = tf.reduce_mean(per_example_loss)
 
     return (sequence_output,output_layer,loss, per_example_loss, logits, probabilities,model.all_encoder_layers)
-def sentEmb(S,bert_config_file,vocab_file,init_checkpoint,max_seq_length = FLAGS.max_seq_length):
+def get_assignment_map_from_checkpoint(tvars, init_checkpoint):
+  import re,collections
+  """Compute the union of the current variables and checkpoint variables."""
+  initialized_variable_names = {}
+  name_to_variable = collections.OrderedDict()
+  for var in tvars:
+    name = var.name
+    m = re.match("^(.*):\\d+$", name)
+    if m is not None:
+      name = m.group(1)
+    name_to_variable[name] = var
+  init_vars = tf.train.list_variables(init_checkpoint)
+  assignment_map = collections.OrderedDict()
+  vars_others = []
+  for x in init_vars:
+    (name, var) = (x[0], x[1])
+    if name[3:] in name_to_variable:
+      assignment_map[name] = name[3:]
+    elif name in name_to_variable:
+      assignment_map[name] = name
+    else:
+      vars_others.append(name)
+      continue
+    initialized_variable_names[name] = 1
+    initialized_variable_names[name + ":0"] = 1
+  return (assignment_map, initialized_variable_names,vars_others)
+class InputExample(object):
+  """A single training/test example for simple sequence classification."""
+  def __init__(self, guid, text_a, text_b=None, label=None):
+    """Constructs a InputExample.
+    Args:
+      guid: Unique id for the example.
+      text_a: string. The untokenized text of the first sequence. For single
+        sequence tasks, only this sequence must be specified.
+      text_b: (Optional) string. The untokenized text of the second sequence.
+        Only must be specified for sequence pair tasks.
+      label: (Optional) string. The label of the example. This should be
+        specified for train and dev examples, but not for test examples.
+    """
+    self.guid = guid
+    self.text_a = text_a
+    self.text_b = text_b
+    self.label = label
+def _truncate_seq_pair(tokens_a, tokens_b, max_length):
+  """Truncates a sequence pair in place to the maximum length."""
+
+  # This is a simple heuristic which will always truncate the longer sequence
+  # one token at a time. This makes more sense than truncating an equal percent
+  # of tokens from each, since if one sequence is very short then each token
+  # that's truncated likely contains more information than a longer sequence.
+  while True:
+    total_length = len(tokens_a) + len(tokens_b)
+    if total_length <= max_length:
+      break
+    if len(tokens_a) > len(tokens_b):
+      tokens_a.pop()
+    else:
+      tokens_b.pop()
+class InputFeatures(object):
+  """A single set of features of data."""
+
+  def __init__(self,
+               input_ids,
+               input_mask,
+               segment_ids,
+               label_id,
+               is_real_example=True):
+    self.input_ids = input_ids
+    self.input_mask = input_mask
+    self.segment_ids = segment_ids
+    self.label_id = label_id
+    self.is_real_example = is_real_example
+class PaddingInputExample(object):
+  """Fake example so the num input examples is a multiple of the batch size.
+  When running eval/predict on the TPU, we need to pad the number of examples
+  to be a multiple of the batch size, because the TPU requires a fixed batch
+  size. The alternative is to drop the last batch, which is bad because it means
+  the entire output data won't be generated.
+  We use this class instead of `None` because treating `None` as padding
+  battches could cause silent errors.
+  """
+def convert_single_example(ex_index, example, label_list, max_seq_length,
+                           tokenizer):
+  """Converts a single `InputExample` into a single `InputFeatures`."""
+  if isinstance(example, PaddingInputExample):
+    return InputFeatures(
+        input_ids=[0] * max_seq_length,
+        input_mask=[0] * max_seq_length,
+        segment_ids=[0] * max_seq_length,
+        label_id=0,
+        is_real_example=False)
+
+  label_map = {}
+  for (i, label) in enumerate(label_list):
+    label_map[label] = i
+
+  tokens_a = tokenizer.tokenize(example.text_a)
+  tokens_b = None
+  if example.text_b:
+    tokens_b = tokenizer.tokenize(example.text_b)
+
+  if tokens_b:
+    # Modifies `tokens_a` and `tokens_b` in place so that the total
+    # length is less than the specified length.
+    # Account for [CLS], [SEP], [SEP] with "- 3"
+    _truncate_seq_pair(tokens_a, tokens_b, max_seq_length - 3)
+  else:
+    # Account for [CLS] and [SEP] with "- 2"
+    if len(tokens_a) > max_seq_length - 2:
+      tokens_a = tokens_a[0:(max_seq_length - 2)]
+
+  # The convention in BERT is:
+  # (a) For sequence pairs:
+  #  tokens:   [CLS] is this jack ##son ##ville ? [SEP] no it is not . [SEP]
+  #  type_ids: 0     0  0    0    0     0       0 0     1  1  1  1   1 1
+  # (b) For single sequences:
+  #  tokens:   [CLS] the dog is hairy . [SEP]
+  #  type_ids: 0     0   0   0  0     0 0
+  #
+  # Where "type_ids" are used to indicate whether this is the first
+  # sequence or the second sequence. The embedding vectors for `type=0` and
+  # `type=1` were learned during pre-training and are added to the wordpiece
+  # embedding vector (and position vector). This is not *strictly* necessary
+  # since the [SEP] token unambiguously separates the sequences, but it makes
+  # it easier for the model to learn the concept of sequences.
+  #
+  # For classification tasks, the first vector (corresponding to [CLS]) is
+  # used as the "sentence vector". Note that this only makes sense because
+  # the entire model is fine-tuned.
+  tokens = []
+  segment_ids = []
+  tokens.append("[CLS]")
+  segment_ids.append(0)
+  for token in tokens_a:
+    tokens.append(token)
+    segment_ids.append(0)
+  tokens.append("[SEP]")
+  segment_ids.append(0)
+
+  if tokens_b:
+    for token in tokens_b:
+      tokens.append(token)
+      segment_ids.append(1)
+    tokens.append("[SEP]")
+    segment_ids.append(1)
+
+  input_ids = tokenizer.convert_tokens_to_ids(tokens)
+
+  # The mask has 1 for real tokens and 0 for padding tokens. Only real
+  # tokens are attended to.
+  input_mask = [1] * len(input_ids)
+
+  # Zero-pad up to the sequence length.
+  while len(input_ids) < max_seq_length:
+    input_ids.append(0)
+    input_mask.append(0)
+    segment_ids.append(0)
+
+  assert len(input_ids) == max_seq_length
+  assert len(input_mask) == max_seq_length
+  assert len(segment_ids) == max_seq_length
+
+  label_id = label_map[example.label]
+  if ex_index < 5:
+    tf.logging.info("*** Example ***")
+    tf.logging.info("guid: %s" % (example.guid))
+    tf.logging.info("tokens: %s" % " ".join(
+        [tokenization.printable_text(x) for x in tokens]))
+    tf.logging.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
+    tf.logging.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
+    tf.logging.info("segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
+    tf.logging.info("label: %s (id = %d)" % (example.label, label_id))
+
+  feature = InputFeatures(
+      input_ids=input_ids,
+      input_mask=input_mask,
+      segment_ids=segment_ids,
+      label_id=label_id,
+      is_real_example=True)
+  return feature
+def sentEmb(S,bert_config_file,vocab_file,path_checkpoint,max_seq_length = FLAGS.max_seq_length):
     import tokenization
+    label_list = ['0','1']
     bert_config = modeling.BertConfig.from_json_file(bert_config_file)
     tokenizer = tokenization.FullTokenizer(
-        vocab_file=vocab_file, do_lower_case=FLAGS.do_lower_case)
-    label_list = ['0', '1']
+        vocab_file=vocab_file, do_lower_case=True)
     tf.reset_default_graph()
     input_ids = tf.placeholder(tf.int32, shape=[None, max_seq_length], name='input_ids')
     input_mask = tf.placeholder(tf.int32, shape=[None, max_seq_length], name='input_mask')
@@ -937,18 +1117,29 @@ def sentEmb(S,bert_config_file,vocab_file,init_checkpoint,max_seq_length = FLAGS
     flow_model = Glow(flow_model_config)
     flow_loss_example = flow_model.body(pooled, False)  # no l2 normalization here any more
     embedding = tf.identity(tf.squeeze(flow_model.z, [1, 2]))
-    checkpoint_path = init_checkpoint
+    checkpoint_path = tf.train.latest_checkpoint(path_checkpoint)
+    sess = tf.Session()
+    sess.run(tf.global_variables_initializer())
     if checkpoint_path:
         tvars = tf.trainable_variables()
-        initialized_variable_names = {}
         print("init_checkpoint:", checkpoint_path)
         print("trainable vars:", tvars)
         if checkpoint_path:
-            (assignment_map, initialized_variable_names
-             ) = modeling.get_assignment_map_from_checkpoint(tvars, checkpoint_path)
+            (assignment_map, initialized_variable_names,vars_others) = get_assignment_map_from_checkpoint(tvars, checkpoint_path)
             print("assignment_map", assignment_map)
             tf.train.init_from_checkpoint(checkpoint_path, assignment_map)
-
+    output = {'bertflow': embedding}
+    T = []
+    for i in range(len(S)):
+        if i % 100 == 0:
+            print(i, len(S))
+        text_a = S[i]
+        example = InputExample(guid='guid', text_a=text_a, label='0')
+        feature = convert_single_example(10, example, label_list, max_seq_length, tokenizer)
+        feed_dict = {input_ids: [feature.input_ids], segment_ids: [feature.segment_ids],
+                     input_mask: [feature.input_mask]}
+        y = {key: sess.run(output[key], feed_dict=feed_dict)[0] for key in output}
+        T.append([i, S[i], y])
 
 if __name__ == "__main__":
   flags.mark_flag_as_required("input_file")
