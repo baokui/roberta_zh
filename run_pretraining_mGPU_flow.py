@@ -1139,7 +1139,7 @@ def sentEmb(S,bert_config_file,vocab_file,path_checkpoint,max_seq_length = FLAGS
                      input_mask: [feature.input_mask]}
         y = {key: sess.run(output[key], feed_dict=feed_dict)[0] for key in output}
         T.append([i, S[i], y])
-
+    return T
 if __name__ == "__main__":
   # flags.mark_flag_as_required("input_file")
   # flags.mark_flag_as_required("bert_config_file")
