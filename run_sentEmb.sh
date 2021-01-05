@@ -172,9 +172,9 @@ max_seqlen=48
 nohup python -u sentEmb.py $gpu $path_data $path_target $init_checkpoint $bert_config_file $vocab_file $max_seqlen $tag $path_idf >> log/sent-$tag-$File.log 2>&1 &
 
 
-File=Queries1
+File=Docs
 gpu=0
-tag=allScenePre48-weightedmean-finetune
+tag=allScenePre48-weightedmean-flow
 path_data="/search/odin/guobk/vpa/vpa-studio-research/retrieval/data/$File.json"
 path_target="/search/odin/guobk/vpa/vpa-studio-research/retrieval/data/$File-$tag.json"
 init_checkpoint='model/bert_allScene48/ckpt_flow'
