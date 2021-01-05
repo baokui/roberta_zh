@@ -296,7 +296,7 @@ class SentClassificationProcessor(DataProcessor): # TODO NEED CHANGE2
           print('###error.i:', i, line)
     return examples
 
-def convert_single_example(ex_index, example, label_list, max_seq_length,
+def convert_single_example(ex_index, example, max_seq_length,
                            tokenizer):
   """Converts a single `InputExample` into a single `InputFeatures`."""
 
@@ -307,10 +307,6 @@ def convert_single_example(ex_index, example, label_list, max_seq_length,
         segment_ids=[0] * max_seq_length,
         label_id=0,
         is_real_example=False)
-
-  label_map = {}
-  for (i, label) in enumerate(label_list):
-    label_map[label] = i
 
   tokens_a = tokenizer.tokenize(example.text_a)
   tokens_b = None
@@ -378,7 +374,7 @@ def convert_single_example(ex_index, example, label_list, max_seq_length,
   assert len(input_mask) == max_seq_length
   assert len(segment_ids) == max_seq_length
 
-  label_id = label_map[example.label]
+  label_id = 0
   if ex_index < 5:
     tf.logging.info("*** Example ***")
     tf.logging.info("guid: %s" % (example.guid))
@@ -503,39 +499,31 @@ def create_model(bert_config, is_training, input_ids, input_mask, segment_ids,
       input_mask=input_mask,
       token_type_ids=segment_ids,
       use_one_hot_embeddings=use_one_hot_embeddings)
-
   # In the demo, we are doing a simple classification task on the entire
   # segment.
   #
   # If you want to use the token-level output, use model.get_sequence_output()
   # instead.
   output_layer = model.get_pooled_output()
-
   sequence_output = model.get_sequence_output()
-
   hidden_size = output_layer.shape[-1].value
   Loss = 0
   Probabilities = []
   for i in range(len(num_labels)):
       output_weights = tf.get_variable(
-          "output_weights"+str(i), [num_labels, hidden_size],
+          "output_weights"+str(i), [num_labels[i], hidden_size],
           initializer=tf.truncated_normal_initializer(stddev=0.02))
-
       output_bias = tf.get_variable(
-          "output_bias"+str(i), [num_labels], initializer=tf.zeros_initializer())
-
+          "output_bias"+str(i), [num_labels[i]], initializer=tf.zeros_initializer())
       with tf.variable_scope("loss"):
         if is_training:
           # I.e., 0.1 dropout
           output_layer = tf.nn.dropout(output_layer, keep_prob=0.9)
-
         logits = tf.matmul(output_layer, output_weights, transpose_b=True)
         logits = tf.nn.bias_add(logits, output_bias)
         probabilities = tf.nn.softmax(logits, axis=-1)
         log_probs = tf.nn.log_softmax(logits, axis=-1)
-
-        one_hot_labels = tf.one_hot(labels[i], depth=num_labels, dtype=tf.float32)
-
+        one_hot_labels = tf.one_hot(labels[i], depth=num_labels[i], dtype=tf.float32)
         per_example_loss = -tf.reduce_sum(one_hot_labels * log_probs, axis=-1) # todo 08-29 try temp-loss
         ###############bi_tempered_logistic_loss############################################################################
         # print("##cross entropy loss is used...."); tf.logging.info("##cross entropy loss is used....")
@@ -544,11 +532,9 @@ def create_model(bert_config, is_training, input_ids, input_mask, segment_ids,
         # per_example_loss=bi_tempered_logistic_loss(log_probs,one_hot_labels,t1,t2,label_smoothing=0.1,num_iters=5) # TODO label_smoothing=0.0
         #tf.logging.info("per_example_loss:"+str(per_example_loss.shape))
         ##############bi_tempered_logistic_loss#############################################################################
-
         loss = tf.reduce_mean(per_example_loss)
         Loss+=loss
         Probabilities.append(probabilities)
-
   return (sequence_output,output_layer,Loss, Probabilities)
 
 
@@ -830,6 +816,15 @@ class Tokenizer(object):
         self.vocab = self.load_vocab(vocab)
         self.inv_vocab = {v:k for k,v in self.vocab.items()}
         self.stopwords = stopwords
+    def tokenize(self,tokens):
+        res = []
+        for t in tokens:
+            if t in self.vocab:
+                t1 = self.vocab[t]
+            else:
+                t1 = self.vocab['[UNK]']
+            res.append(t1)
+        return res
     def convert_tokens_to_ids(self, sentence, seq_length=None, begin_str = '[B]',end_str='[E]'):
         tokens = sentence
         res = []
@@ -931,9 +926,11 @@ def get_model(max_seq_length, L, D_map, batch_size=64, is_training=True):
         Acc += accuracy
     Acc = Acc / len(L)
     train_op = tf.train.AdamOptimizer(learning_rate).minimize(Loss)
-    return input, Y, Loss, Acc, train_op, Predict
+    return input,input_mask,segment_ids, Y, Loss, Acc, train_op, Predict
 def iter_data(path_data,tokenizer,seq_len,L0,idx0,batch_size=64,epochs = 10, mode = 'train'):
-    X = []
+    X_input_ids = []
+    X_segment_ids = []
+    X_input_mask = []
     Y = [[] for _ in range(len(L0))]
     with open(path_data,'r',encoding='utf-8') as f:
         S = f.read().strip().split('\n')
@@ -944,11 +941,15 @@ def iter_data(path_data,tokenizer,seq_len,L0,idx0,batch_size=64,epochs = 10, mod
         if mode == 'train' and epoch>=epochs:
             break
         for s in S:
-            X.append(tokenizer.convert_tokens_to_ids(s[0],seq_length=seq_len))
+            example = InputExample(guid='guid', text_a=s[0], label='0')
+            feature = convert_single_example(10, example, seq_len, tokenizer)
+            X_input_ids.append(feature.input_ids)
+            X_segment_ids.append(feature.segment_ids)
+            X_input_mask.append(feature.input_mask)
             for i in range(len(L0)):
                 Y[i].append(int(s[idx0[i]+1]))
-            if len(X)>=batch_size:
-                yield X,Y,epoch
+            if len(X_input_ids)>=batch_size:
+                yield X_input_mask,X_segment_ids,X_input_mask,Y,epoch
                 X = []
                 Y = [[] for _ in range(len(L0))]
         epoch+=1
@@ -1016,7 +1017,7 @@ def main():
     D_alpha0 = json.load(open(path_alpha, 'r'))
     D_alpha = {k: [D_alpha0[k][kk] for kk in D_map[k]] for k in D_map}
     tokenizer = Tokenizer(path_vocab)
-    input, Y, Loss, Acc, train_op, Predict = get_model(max_seq_length, L, D_map, batch_size=None, is_training=is_training)
+    input,input_mask,segment_ids, Y, Loss, Acc, train_op, Predict = get_model(max_seq_length, L, D_map, batch_size=None, is_training=is_training)
     tvars = tf.trainable_variables()
     (assignment_map, initialized_variable_names
      ) = modeling.get_assignment_map_from_checkpoint(tvars, init_checkpoint)
@@ -1041,9 +1042,10 @@ def main():
     if not os.path.exists(path_model):
         os.mkdir(path_model)
     while data != '__STOP__':
-        Xbatch, Ybatch, epoch = data
+        X_input_ids_,X_segment_ids_,X_input_mask_,Ybatch, epoch = data
         start_time = time.time()
-        feed_dict = {input: Xbatch}
+        feed_dict = {input: [X_input_ids_], segment_ids: [X_segment_ids_],
+                     input_mask: [X_input_mask_]}
         for i in range(len(L)):
             feed_dict[Y[i]] = Ybatch[i]
         loss_train, acc_train, _ = session.run([Loss, Acc, model_train_op], feed_dict=feed_dict)
