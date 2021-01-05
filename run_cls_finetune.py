@@ -950,21 +950,29 @@ def iter_data(path_data,tokenizer,seq_len,L0,idx0,batch_size=64,epochs = 10, mod
                 Y[i].append(int(s[idx0[i]+1]))
             if len(X_input_ids)>=batch_size:
                 yield X_input_mask,X_segment_ids,X_input_mask,Y,epoch
-                X = []
+                X_input_ids = []
+                X_segment_ids = []
+                X_input_mask = []
                 Y = [[] for _ in range(len(L0))]
         epoch+=1
     yield "__STOP__"
 def getdata(path_data,tokenizer,seq_len,L0,idx0):
-    X = []
+    X_input_ids = []
+    X_segment_ids = []
+    X_input_mask = []
     Y = [[] for _ in range(len(L0))]
     with open(path_data,'r',encoding='utf-8') as f:
         S = f.read().strip().split('\n')
     S = [s.split('\t') for s in S]
     for s in S:
-        X.append(tokenizer.convert_tokens_to_ids(s[0],seq_length=seq_len))
+        example = InputExample(guid='guid', text_a=s[0], label='0')
+        feature = convert_single_example(10, example, seq_len, tokenizer)
+        X_input_ids.append(feature.input_ids)
+        X_segment_ids.append(feature.segment_ids)
+        X_input_mask.append(feature.input_mask)
         for i in range(len(L0)):
             Y[i].append(int(s[idx0[i]+1]))
-    return X,Y
+    return X_input_ids,X_segment_ids,X_input_mask,Y
 def model_eval(session,data_dev,input,Y,Loss,Acc,Predict,L,batch_size):
     Loss0 = []
     Acc_dev = []
