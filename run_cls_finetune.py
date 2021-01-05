@@ -70,7 +70,7 @@ flags.DEFINE_bool(
     "models and False for cased models.")
 
 flags.DEFINE_integer(
-    "max_seq_length", 64,
+    "max_seq_length", 48,
     "The maximum total input sequence length after WordPiece tokenization. "
     "Sequences longer than this will be truncated, and sequences shorter "
     "than this will be padded.")
@@ -518,11 +518,11 @@ def create_model(bert_config, is_training, input_ids, input_mask, segment_ids,
   Probabilities = []
   for i in range(len(num_labels)):
       output_weights = tf.get_variable(
-          "output_weights", [num_labels, hidden_size],
+          "output_weights"+str(i), [num_labels, hidden_size],
           initializer=tf.truncated_normal_initializer(stddev=0.02))
 
       output_bias = tf.get_variable(
-          "output_bias", [num_labels], initializer=tf.zeros_initializer())
+          "output_bias"+str(i), [num_labels], initializer=tf.zeros_initializer())
 
       with tf.variable_scope("loss"):
         if is_training:
