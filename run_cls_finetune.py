@@ -308,7 +308,8 @@ def convert_single_example(ex_index, example, max_seq_length,
         label_id=0,
         is_real_example=False)
 
-  tokens_a = tokenizer.tokenize(example.text_a)
+  #tokens_a = tokenizer.tokenize(example.text_a)
+  tokens_a = example.text_a
   tokens_b = None
   if example.text_b:
     tokens_b = tokenizer.tokenize(example.text_b)
@@ -825,7 +826,7 @@ class Tokenizer(object):
                 t1 = self.vocab['[UNK]']
             res.append(t1)
         return res
-    def convert_tokens_to_ids(self, sentence, seq_length=None, begin_str = '[B]',end_str='[E]'):
+    def convert_tokens_to_ids(self, sentence, seq_length=None, begin_str = '',end_str=''):
         tokens = sentence
         res = []
         if begin_str:
@@ -973,16 +974,16 @@ def getdata(path_data,tokenizer,seq_len,L0,idx0):
         for i in range(len(L0)):
             Y[i].append(int(s[idx0[i]+1]))
     return X_input_ids,X_segment_ids,X_input_mask,Y
-def model_eval(session,data_dev,input,Y,Loss,Acc,Predict,L,batch_size):
+def model_eval(session,data_dev,input,segment_ids,input_mask,Y,Loss,Acc,Predict,L,batch_size):
     Loss0 = []
     Acc_dev = []
     Yp = [[]]*len(L)
-    X_d, Y_d = data_dev
+    X_input_ids_,X_segment_ids_,X_input_mask_,Y_d = data_dev
     feed_dict = {}
     i = 0
-    while (i+1)*batch_size<len(X_d):
-        X_d_b = X_d[i*batch_size:(i+1)*batch_size]
-        feed_dict = {input: X_d_b}
+    while (i+1)*batch_size<len(X_input_ids_):
+        feed_dict = {input: X_input_ids_[i*batch_size:(i+1)*batch_size], segment_ids: X_segment_ids_[i*batch_size:(i+1)*batch_size],
+                     input_mask: X_input_mask_[i*batch_size:(i+1)*batch_size]}
         for j in range(len(L)):
             feed_dict[Y[j]] = Y_d[j][i*batch_size:(i+1)*batch_size]
         loss_dev, acc_dev, y_d_p = session.run([Loss, Acc, Predict], feed_dict=feed_dict)
@@ -1052,8 +1053,8 @@ def main():
     while data != '__STOP__':
         X_input_ids_,X_segment_ids_,X_input_mask_,Ybatch, epoch = data
         start_time = time.time()
-        feed_dict = {input: [X_input_ids_], segment_ids: [X_segment_ids_],
-                     input_mask: [X_input_mask_]}
+        feed_dict = {input: X_input_ids_, segment_ids: X_segment_ids_,
+                     input_mask: X_input_mask_}
         for i in range(len(L)):
             feed_dict[Y[i]] = Ybatch[i]
         loss_train, acc_train, _ = session.run([Loss, Acc, model_train_op], feed_dict=feed_dict)
@@ -1063,7 +1064,7 @@ def main():
             msg = 'EPOCH:{},total_batch:{},loss_train:{},acc_train:{},time_diff:{}'
             print(msg.format(epoch, total_batch, '%0.2f' % loss_train, '%0.2f' % acc_train, time_dif))
         if total_batch % save_steps == 0:
-            loss_dev, acc_dev, Y_d, Y_p = model_eval(session, data_dev, input, Y, Loss, Acc, Predict, L,
+            loss_dev, acc_dev, Y_d, Y_p = model_eval(session, data_dev, input,segment_ids,input_mask, Y, Loss, Acc, Predict, L,
                                                      train_batch_size)
             for j in range(len(Y_d)):
                 y_one_hot = label_binarize(Y_d[j], np.arange(len(D_map[L[j]])))
