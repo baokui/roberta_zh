@@ -3,6 +3,7 @@ cuda=$2
 my_new_model_path=$3
 max_seq_length=$4
 input_file=$5
+model=$6
 #input_file=data_prose/raw5-text.tfrecord
 export CUDA_VISIBLE_DEVICES=$cuda
 nohup python -u run_pretraining.py \
@@ -19,4 +20,4 @@ nohup python -u run_pretraining.py \
   --learning_rate=1e-4  \
   --tpu_name=123  \
   --save_checkpoints_steps=3000  \
-  --init_checkpoint=$BERT_BASE_DIR/bert_model.ckpt >> log/finetune-$BERT_BASE_DIR.log 2>&1 &
+  --init_checkpoint=$BERT_BASE_DIR/bert_model.ckpt >> log/finetune-$model.log 2>&1 &

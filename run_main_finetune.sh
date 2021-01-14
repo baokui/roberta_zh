@@ -33,5 +33,6 @@ cuda=4
 outputfile=Data_AiWriter/model/ckpt
 max_seq_length=200
 input_file=Data_AiWriter/data/tfrecord/raw.tfrecord
+model=AiWriter
 mkdir $outputfile
-sh run_train_finetune.sh $modelfile $cuda $outputfile $max_seq_length
+sh run_train_finetune.sh $modelfile $cuda $outputfile $max_seq_length $input_file $model
