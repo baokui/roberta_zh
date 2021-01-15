@@ -94,7 +94,7 @@ nohup python -u create_pretraining_data.py \
   --output_file=$outputfile \
   --vocab_file=./resources/vocab.txt \
   --do_lower_case=True \
-  --max_seq_length=200 \
+  --max_seq_length=512 \
   --min_seg_length=10 \
   --max_predictions_per_seq=2 \
   --masked_lm_prob=0.1  \

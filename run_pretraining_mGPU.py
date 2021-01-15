@@ -790,6 +790,7 @@ def main(_):
               except:
                 sess.run(iterator.initializer)
                 print('Iterator initialized')
+                loss_print_ = 0
               # optimistic_restore(sess, checkpoint_path + "-0")
               # loss_print_2 = sess.run([loss_print])
               sum += loss_print_

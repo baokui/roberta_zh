@@ -220,3 +220,32 @@ nohup python -u run_pretraining_mGPU_flow.py --input_file=$files  --n_gpus=1 \
 --train_batch_size=64 --max_seq_length=$max_seq_length --max_predictions_per_seq=2 \
 --num_train_steps=2000000 --num_warmup_steps=10000 --learning_rate=1e-4  --tpu_name=123  \
 --save_checkpoints_steps=3000 --init_checkpoint=$init_checkpoint >> log/pretrain-bert_allScene48-flow.log 2>&1 &
+
+
+
+
+my_new_model_path=Data_AiWriter/model/ckpt
+bert_config_file=Data_AiWriter/model/bert_config.json
+init_checkpoint=model/roberta_zh_L-6-H-768_A-12/bert_model.ckpt
+mkdir -p $my_new_model_path
+max_seq_length=512
+export CUDA_VISIBLE_DEVICES="4"
+files=Data_AiWriter/data/tfrecord/raw.tfrecord
+nohup python -u run_pretraining.py --input_file=$files  --n_gpus=1 \
+--output_dir=$my_new_model_path --do_train=True --do_eval=True --bert_config_file=$bert_config_file \
+--train_batch_size=64 --max_seq_length=$max_seq_length --max_predictions_per_seq=2 \
+--num_train_steps=2000000 --num_warmup_steps=10000 --learning_rate=1e-4  --tpu_name=123  \
+--save_checkpoints_steps=3000 --init_checkpoint=$init_checkpoint >> log/pretrain-AiWriter.log 2>&1 &
+
+BERT_BASE_DIR=Data_AiWriter/model/
+my_new_model_path=Data_AiWriter/model/ckpt
+init_checkpoint=model/roberta_zh_L-6-H-768_A-12/bert_model.ckpt
+mkdir -p $my_new_model_path
+max_seq_length=512
+export CUDA_VISIBLE_DEVICES="2,3,4,5"
+files=data_prose/tfrecord48/raw.tfrecord
+nohup python -u run_pretraining_mGPU.py --input_file=$files  --n_gpus=4 \
+--output_dir=$my_new_model_path --do_train=True --do_eval=True --bert_config_file=$BERT_BASE_DIR/bert_config.json \
+--train_batch_size=64 --max_seq_length=$max_seq_length --max_predictions_per_seq=2 \
+--num_train_steps=20000 --num_warmup_steps=10000 --learning_rate=1e-4  --tpu_name=123  \
+--save_checkpoints_steps=3000 --init_checkpoint=$init_checkpoint >> log/pretrain-AiWriter.log 2>&1 &
