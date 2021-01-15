@@ -737,7 +737,7 @@ def main(_):
           'train_perplexity', [],
           initializer=tf.constant_initializer(0.0), trainable=False)
       for k in range(n_gpus):
-          with tf.device('/gpu:%d' % k,reuse=k>0):
+          with tf.device('/gpu:%d' % k):
               with tf.variable_scope('lm', reuse=k > 0):
                   # calculate the loss for one model replica and get
                   #   lstm states
