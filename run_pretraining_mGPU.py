@@ -791,7 +791,7 @@ def main(_):
               initialized_variable_names = {}
               print("init_checkpoint:", checkpoint_path)
               if checkpoint_path:
-                  (assignment_map, initialized_variable_names
+                  (assignment_map, initialized_variable_names,vars_others
                    ) = get_assignment_map_from_checkpoint(tvars, checkpoint_path)
                   print("assignment_map",assignment_map)
                   tf.train.init_from_checkpoint(checkpoint_path, assignment_map)
