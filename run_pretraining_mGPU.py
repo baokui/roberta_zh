@@ -633,8 +633,8 @@ def get_assignment_map_from_checkpoint(tvars, init_checkpoint):
   vars_others = []
   for x in init_vars:
     (name, var) = (x[0], x[1])
-    if name[3:] in name_to_variable:
-      assignment_map[name] = name[3:]
+    if 'lm/'+name in name_to_variable:
+      assignment_map[name] = 'lm/'+name
     elif name in name_to_variable:
       assignment_map[name] = name
     else:
@@ -737,7 +737,7 @@ def main(_):
           'train_perplexity', [],
           initializer=tf.constant_initializer(0.0), trainable=False)
       for k in range(n_gpus):
-          with tf.device('/gpu:%d' % k):
+          with tf.device('/gpu:%d' % k,reuse=k>0):
               with tf.variable_scope('lm', reuse=k > 0):
                   # calculate the loss for one model replica and get
                   #   lstm states
