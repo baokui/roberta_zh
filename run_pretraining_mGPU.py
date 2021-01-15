@@ -615,6 +615,32 @@ def clip_grads(grads, all_clip_norm_val, do_summaries):
     assert len(ret) == len(grads)
 
     return ret, summary_ops
+def get_assignment_map_from_checkpoint(tvars, init_checkpoint):
+  import re,collections
+  """Compute the union of the current variables and checkpoint variables."""
+  initialized_variable_names = {}
+  name_to_variable = collections.OrderedDict()
+  for var in tvars:
+    name = var.name
+    m = re.match("^(.*):\\d+$", name)
+    if m is not None:
+      name = m.group(1)
+    name_to_variable[name] = var
+  init_vars = tf.train.list_variables(init_checkpoint)
+  assignment_map = collections.OrderedDict()
+  vars_others = []
+  for x in init_vars:
+    (name, var) = (x[0], x[1])
+    if name[3:] in name_to_variable:
+      assignment_map[name] = name[3:]
+    elif name in name_to_variable:
+      assignment_map[name] = name
+    else:
+      vars_others.append(name)
+      continue
+    initialized_variable_names[name] = 1
+    initialized_variable_names[name + ":0"] = 1
+  return (assignment_map, initialized_variable_names,vars_others)
 def main(_):
   tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -766,7 +792,7 @@ def main(_):
               print("init_checkpoint:", checkpoint_path)
               if checkpoint_path:
                   (assignment_map, initialized_variable_names
-                   ) = modeling.get_assignment_map_from_checkpoint(tvars, checkpoint_path)
+                   ) = get_assignment_map_from_checkpoint(tvars, checkpoint_path)
                   print("assignment_map",assignment_map)
                   tf.train.init_from_checkpoint(checkpoint_path, assignment_map)
               tf.logging.info("**** Trainable Variables ****")
