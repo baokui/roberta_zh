@@ -1007,8 +1007,9 @@ def main():
     path_data = FLAGS.data_dir
     max_seq_length = FLAGS.max_seq_length
     init_checkpoint = FLAGS.init_checkpoint
-    path_map = os.path.join(path_data, 'D_map1.json')
-    path_vocab = os.path.join(path_data, 'vocab.txt')
+    path_map = os.path.join(path_data, 'map_index.json')
+    #path_vocab = os.path.join(path_data, 'vocab.txt')
+    path_vocab = FLAGS.vocab_file
     path_alpha = os.path.join(path_data, 'D_alpha.json')
     path_model = FLAGS.output_dir
     print_steps = 100
