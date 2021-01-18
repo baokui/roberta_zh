@@ -100,3 +100,20 @@ nohup python -u create_pretraining_data.py \
   --masked_lm_prob=0.1  \
   --random_seed=12345  \
   --dupe_factor=5 >> log/create-pretrain-Aiwriter.log 2>&1 &
+
+
+#!!!!!! inputfile里的内容必须是\n\n分割！！！！！！！！！！！！
+inputfile="Data_AiWriter/data/raw.txt"
+outputfile="Data_AiWriter/data/tfrecord/raw.tfrecord"
+nohup python -u create_pretraining_data.py \
+  --do_whole_word_mask=True \
+  --input_file=$inputfile \
+  --output_file=$outputfile \
+  --vocab_file=./resources/vocab.txt \
+  --do_lower_case=True \
+  --max_seq_length=512 \
+  --min_seg_length=10 \
+  --max_predictions_per_seq=2 \
+  --masked_lm_prob=0.1  \
+  --random_seed=12345  \
+  --dupe_factor=5 >> log/create-pretrain-Aiwriter.log 2>&1 &

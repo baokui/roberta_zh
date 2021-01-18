@@ -80,7 +80,7 @@ flags.DEFINE_bool("do_train", False, "Whether to run training.")
 flags.DEFINE_bool("do_eval", False, "Whether to run eval on the dev set.")
 
 flags.DEFINE_bool(
-    "do_predict", True,
+    "do_predict", False,
     "Whether to run the model in inference mode on the test set.")
 
 flags.DEFINE_integer("train_batch_size", 32, "Total batch size for training.")
@@ -1016,7 +1016,8 @@ def main():
     is_training = FLAGS.do_train
     train_batch_size = FLAGS.train_batch_size
     L0 = ['使用场景P0', '表达对象P0', '表达者性别倾向P0', '文字风格']
-    L = L0
+    L = FLAGS.task_name
+    L = L.split(',')
     idx0 = []
     for l in L:
         idx0.append(L0.index(l))
