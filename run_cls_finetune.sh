@@ -7,7 +7,7 @@ nohup python -u run_cls_finetune.py \
     --task_name=$task_name \
     --vocab_file=$BERT_BASE_DIR/vocab.txt \
     --output_dir=model/label/$task_name \
-    --train_batch_size=4 \
+    --train_batch_size=32 \
     --init_checkpoint=$BERT_BASE_DIR/bert_model.ckpt \
     --max_seq_length=512 \
     --do_train=True \

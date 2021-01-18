@@ -1042,7 +1042,7 @@ def main():
     tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
 
     saver = tf.train.Saver(max_to_keep=None)
-    iter = iter_data(path_train, tokenizer, max_seq_length, L, idx0, epochs=100)
+    iter = iter_data(path_train, tokenizer, max_seq_length, L, idx0, epochs=100,batch_size=train_batch_size)
     data_dev = getdata(path_dev, tokenizer, max_seq_length, L, idx0)
     session = tf.Session()
     global_step = tf.train.get_or_create_global_step()
