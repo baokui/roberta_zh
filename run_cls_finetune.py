@@ -1010,7 +1010,7 @@ def main():
     path_map = os.path.join(path_data, 'map_index.json')
     #path_vocab = os.path.join(path_data, 'vocab.txt')
     path_vocab = FLAGS.vocab_file
-    path_alpha = os.path.join(path_data, 'D_alpha.json')
+    path_alpha = os.path.join(path_data, 'label_alpha.json')
     path_model = FLAGS.output_dir
     print_steps = 100
     save_steps = 1000
