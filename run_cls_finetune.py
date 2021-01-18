@@ -45,13 +45,13 @@ flags.DEFINE_string(
     "for the task.")
 
 flags.DEFINE_string(
-    "bert_config_file", "model/bert_allScene48/bert_config.json",
+    "bert_config_file", "model/roberta_zh_l12/bert_config.json",
     "The config json file corresponding to the pre-trained BERT model. "
     "This specifies the model architecture.")
 
 flags.DEFINE_string("task_name", None, "The name of the task to train.")
 
-flags.DEFINE_string("vocab_file", "",
+flags.DEFINE_string("vocab_file", "model/roberta_zh_l12/vocab.txt",
                     "The vocabulary file that the BERT model was trained on.")
 
 flags.DEFINE_string(
@@ -61,7 +61,7 @@ flags.DEFINE_string(
 ## Other parameters
 
 flags.DEFINE_string(
-    "init_checkpoint", "model/bert_allScene48/ckpt_finetune/model.ckpt",
+    "init_checkpoint", "model/roberta_zh_l12/bert_model.ckpt",
     "Initial checkpoint (usually from a pre-trained BERT model).")
 
 flags.DEFINE_bool(
