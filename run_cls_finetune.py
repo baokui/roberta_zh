@@ -489,9 +489,56 @@ def _truncate_seq_pair(tokens_a, tokens_b, max_length):
     else:
       tokens_b.pop()
 
+def focal_loss(logits, labels, alpha, epsilon=1.e-7,
+               gamma=2.0,
+               multi_dim=False):
+    '''
+    :param logits:  [batch_size, n_class]
+    :param labels: [batch_size]  not one-hot !!!
+    :return: -alpha*(1-y)^r * log(y)
+    它是在哪实现 1- y 的？ 通过gather选择的就是1-p,而不是通过计算实现的；
+    logits soft max之后是多个类别的概率，也就是二分类时候的1-P和P；多分类的时候不是1-p了；
 
+    怎么把alpha的权重加上去？
+    通过gather把alpha选择后变成batch长度，同时达到了选择和维度变换的目的
+
+    是否需要对logits转换后的概率值进行限制？
+    需要的，避免极端情况的影响
+
+    针对输入是 (N，P，C )和  (N，P)怎么处理？
+    先把他转换为和常规的一样形状，（N*P，C） 和 （N*P,）
+
+    bug:
+    ValueError: Cannot convert an unknown Dimension to a Tensor: ?
+    因为输入的尺寸有时是未知的，导致了该bug,如果batchsize是确定的，可以直接修改为batchsize
+
+    '''
+    if multi_dim:
+        logits = tf.reshape(logits, [-1, logits.shape[2]])
+        labels = tf.reshape(labels, [-1])
+    # (Class ,1)
+    alpha = tf.constant(alpha, dtype=tf.float32)
+    labels = tf.cast(labels, dtype=tf.int32)
+    logits = tf.cast(logits, tf.float32)
+    # (N,Class) > N*Class
+    softmax = tf.reshape(tf.nn.softmax(logits), [-1])  # [batch_size * n_class]
+    # (N,) > (N,) ,但是数值变换了，变成了每个label在N*Class中的位置
+    labels_shift = tf.range(0, logits.shape[0]) * logits.shape[1] + labels
+    # labels_shift = tf.range(0, batch_size*32) * logits.shape[1] + labels
+    # (N*Class,) > (N,)
+    prob = tf.gather(softmax, labels_shift)
+    # 预防预测概率值为0的情况  ; (N,)
+    prob = tf.clip_by_value(prob, epsilon, 1. - epsilon)
+    # (Class ,1) > (N,)
+    alpha_choice = tf.gather(alpha, labels)
+    # (N,) > (N,)
+    weight = tf.pow(tf.subtract(1., prob), gamma)
+    weight = tf.multiply(alpha_choice, weight)
+    # (N,) > 1
+    loss = -tf.reduce_mean(tf.multiply(weight, tf.log(prob)))
+    return loss
 def create_model(bert_config, is_training, input_ids, input_mask, segment_ids,
-                 labels, num_labels, use_one_hot_embeddings):
+                 labels, num_labels, use_one_hot_embeddings,use_focal=True,D_alpha={}):
   """Creates a classification model."""
   model = modeling.BertModel(
       config=bert_config,
@@ -525,7 +572,11 @@ def create_model(bert_config, is_training, input_ids, input_mask, segment_ids,
         probabilities = tf.nn.softmax(logits, axis=-1)
         log_probs = tf.nn.log_softmax(logits, axis=-1)
         one_hot_labels = tf.one_hot(labels[i], depth=num_labels[i], dtype=tf.float32)
-        per_example_loss = -tf.reduce_sum(one_hot_labels * log_probs, axis=-1) # todo 08-29 try temp-loss
+        if not use_focal:
+            per_example_loss = -tf.reduce_sum(one_hot_labels * log_probs, axis=-1) # todo 08-29 try temp-loss
+            loss = tf.reduce_mean(per_example_loss)
+        else:
+            loss = focal_loss(logits, labels[i], D_alpha)
         ###############bi_tempered_logistic_loss############################################################################
         # print("##cross entropy loss is used...."); tf.logging.info("##cross entropy loss is used....")
         # t1=0.9 #t1=0.90
@@ -533,7 +584,7 @@ def create_model(bert_config, is_training, input_ids, input_mask, segment_ids,
         # per_example_loss=bi_tempered_logistic_loss(log_probs,one_hot_labels,t1,t2,label_smoothing=0.1,num_iters=5) # TODO label_smoothing=0.0
         #tf.logging.info("per_example_loss:"+str(per_example_loss.shape))
         ##############bi_tempered_logistic_loss#############################################################################
-        loss = tf.reduce_mean(per_example_loss)
+
         Loss+=loss
         Probabilities.append(probabilities)
   return (sequence_output,output_layer,Loss, Probabilities)
@@ -541,7 +592,7 @@ def create_model(bert_config, is_training, input_ids, input_mask, segment_ids,
 
 def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate,
                      num_train_steps, num_warmup_steps, use_tpu,
-                     use_one_hot_embeddings):
+                     use_one_hot_embeddings,use_focal=True,D_alpha={}):
   """Returns `model_fn` closure for TPUEstimator."""
 
   def model_fn(features, labels, mode, params):  # pylint: disable=unused-argument
@@ -565,7 +616,7 @@ def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate,
 
     (sequence_output,output_layer,total_loss, per_example_loss, logits, probabilities) = create_model(
         bert_config, is_training, input_ids, input_mask, segment_ids, label_ids,
-        num_labels, use_one_hot_embeddings)
+        num_labels, use_one_hot_embeddings,use_focal,D_alpha)
 
     tvars = tf.trainable_variables()
     initialized_variable_names = {}
@@ -903,7 +954,7 @@ class Tokenizer(object):
             vocab['[E]'] = len(vocab)
         return vocab
 
-def get_model(max_seq_length, L, D_map, batch_size=64, is_training=True):
+def get_model(max_seq_length, L, D_map, batch_size=64, is_training=True,use_focal=True,D_alpha={}):
     # seq_len = 32
     # vocab_size = 10000
     # dim_emb = 128
@@ -919,7 +970,7 @@ def get_model(max_seq_length, L, D_map, batch_size=64, is_training=True):
         Y.append(y)
     num_labels = [len(D_map[k]) for k in L]
     sequence_output,output_layer,Loss, Predict= create_model(bert_config, is_training, input, input_mask, segment_ids,
-                 Y, num_labels, use_one_hot_embeddings=False)
+                 Y, num_labels, use_one_hot_embeddings=False,use_focal=use_focal,D_alpha=D_alpha)
     Acc = 0
     for i in range(len(L)):
         correct_prediction = tf.equal(tf.argmax(Predict[i], 1), Y[i])
@@ -1028,7 +1079,7 @@ def main():
     D_alpha0 = json.load(open(path_alpha, 'r'))
     D_alpha = {k: [D_alpha0[k][kk] for kk in D_map[k]] for k in D_map}
     tokenizer = Tokenizer(path_vocab)
-    input,input_mask,segment_ids, Y, Loss, Acc, train_op, Predict = get_model(max_seq_length, L, D_map, batch_size=None, is_training=is_training)
+    input,input_mask,segment_ids, Y, Loss, Acc, train_op, Predict = get_model(max_seq_length, L, D_map, batch_size=None, is_training=is_training,use_focal=True,D_alpha=D_alpha[L[0]])
     saver = tf.train.Saver(max_to_keep=None)
     session = tf.Session()
     global_step = tf.train.get_or_create_global_step()
