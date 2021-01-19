@@ -950,7 +950,7 @@ def iter_data(path_data,tokenizer,seq_len,L0,idx0,batch_size=64,epochs = 10, mod
             for i in range(len(L0)):
                 Y[i].append(int(s[idx0[i]+1]))
             if len(X_input_ids)>=batch_size:
-                yield X_input_mask,X_segment_ids,X_input_mask,Y,epoch
+                yield X_input_ids,X_segment_ids,X_input_mask,Y,epoch
                 X_input_ids = []
                 X_segment_ids = []
                 X_input_mask = []
@@ -1029,27 +1029,29 @@ def main():
     D_alpha = {k: [D_alpha0[k][kk] for kk in D_map[k]] for k in D_map}
     tokenizer = Tokenizer(path_vocab)
     input,input_mask,segment_ids, Y, Loss, Acc, train_op, Predict = get_model(max_seq_length, L, D_map, batch_size=None, is_training=is_training)
-    tvars = tf.trainable_variables()
-    (assignment_map, initialized_variable_names
-     ) = modeling.get_assignment_map_from_checkpoint(tvars, init_checkpoint)
-    if len(assignment_map)==0:
-        (assignment_map, initialized_variable_names
-         ) = get_assignment_map_from_checkpoint(tvars, init_checkpoint)
-    init_vars = tf.train.list_variables(init_checkpoint)
-    print("tarvs",tvars)
-    print("init_vars",init_vars)
-    print("assignment_map",assignment_map)
-    tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
-
     saver = tf.train.Saver(max_to_keep=None)
-    iter = iter_data(path_train, tokenizer, max_seq_length, L, idx0, epochs=100,batch_size=train_batch_size)
-    data_dev = getdata(path_dev, tokenizer, max_seq_length, L, idx0)
     session = tf.Session()
     global_step = tf.train.get_or_create_global_step()
     model_train_op = tf.group(train_op, [tf.assign_add(global_step, 1)])
+    session.run(tf.global_variables_initializer())
+    if 'bert' in init_checkpoint:
+        tvars = tf.trainable_variables()
+        (assignment_map, initialized_variable_names
+         ) = modeling.get_assignment_map_from_checkpoint(tvars, init_checkpoint)
+        if len(assignment_map)==0:
+            (assignment_map, initialized_variable_names
+             ) = get_assignment_map_from_checkpoint(tvars, init_checkpoint)
+        init_vars = tf.train.list_variables(init_checkpoint)
+        print("tarvs",tvars)
+        print("init_vars",init_vars)
+        print("assignment_map",assignment_map)
+        tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
+    else:
+        saver.restore(session, init_checkpoint)
+    iter = iter_data(path_train, tokenizer, max_seq_length, L, idx0, epochs=100,batch_size=train_batch_size)
+    data_dev = getdata(path_dev, tokenizer, max_seq_length, L, idx0)
     data = next(iter)
     total_batch = 0  # 总批次
-    session.run(tf.global_variables_initializer())
     if not os.path.exists(path_model):
         os.mkdir(path_model)
     while data != '__STOP__':
