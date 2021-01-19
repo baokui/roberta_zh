@@ -961,9 +961,9 @@ def get_model(max_seq_length, L, D_map, batch_size=64, is_training=True,use_foca
     learning_rate = 1e-4
     bert_config = modeling.BertConfig.from_json_file(FLAGS.bert_config_file)
     tf.reset_default_graph()
-    input = tf.placeholder(tf.int32, shape=[None, max_seq_length], name='input_ids')
-    input_mask = tf.placeholder(tf.int32, shape=[None, max_seq_length], name='input_mask')
-    segment_ids = tf.placeholder(tf.int32, shape=[None, max_seq_length], name='segment_ids')
+    input = tf.placeholder(tf.int32, shape=[batch_size, max_seq_length], name='input_ids')
+    input_mask = tf.placeholder(tf.int32, shape=[batch_size, max_seq_length], name='input_mask')
+    segment_ids = tf.placeholder(tf.int32, shape=[batch_size, max_seq_length], name='segment_ids')
     Y = []
     for i in range(len(L)):
         y = tf.placeholder(tf.int64, [batch_size, ], name="input-y-" + str(i))
