@@ -85,7 +85,6 @@ if __name__ != '__main__':
     app.logger.setLevel(gunicorn_logger.level)
 
 if __name__ == "__main__":
-    port = int(sys.argv[1])
     server = WSGIServer(("0.0.0.0", port), app)
     print("Server started")
     server.serve_forever()
