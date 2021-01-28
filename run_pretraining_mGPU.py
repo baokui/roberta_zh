@@ -812,7 +812,7 @@ def main(_):
           count = 0
           t0 = time.time()
           sum = 0
-          while True:
+          while count<FLAGS.num_train_steps:
               try:
                 _, loss_print_ = sess.run([train_op, loss_print])
               except:

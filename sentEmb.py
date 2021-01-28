@@ -10,8 +10,14 @@ def norm(V1):
     V1 = V1 / np.sqrt(len(V1[0]))
     return V1
 def sentEmbing(D,init_checkpoint,bert_config_file,vocab_file,max_seqlen,tag,IDF):
-    S = [d['content'] for d in D]
-    T = sentEmb(S, bert_config_file, vocab_file, init_checkpoint,max_seqlen)
+    S0 = [d['content'] for d in D]
+    T = []
+    i0 = 0
+    while i0<len(S0):
+        S = S0[i0:i0+300000]
+        t = sentEmb(S, bert_config_file, vocab_file, init_checkpoint,max_seqlen)
+        T.extend(t)
+        i0+=300000
     #R = [T[i][2]['lastToken'] for i in range(len(T))]
     #R = [np.mean(T[i][2]['sequence_vector'][1:len(S[i])+1],axis=0) for i in range(len(T))]
     R = []

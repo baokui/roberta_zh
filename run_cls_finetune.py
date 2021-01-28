@@ -576,6 +576,7 @@ def create_model(bert_config, is_training, input_ids, input_mask, segment_ids,
             per_example_loss = -tf.reduce_sum(one_hot_labels * log_probs, axis=-1) # todo 08-29 try temp-loss
             loss = tf.reduce_mean(per_example_loss)
         else:
+            print(logits,labels[i])
             loss = focal_loss(logits, labels[i], D_alpha)
         ###############bi_tempered_logistic_loss############################################################################
         # print("##cross entropy loss is used...."); tf.logging.info("##cross entropy loss is used....")
@@ -584,7 +585,6 @@ def create_model(bert_config, is_training, input_ids, input_mask, segment_ids,
         # per_example_loss=bi_tempered_logistic_loss(log_probs,one_hot_labels,t1,t2,label_smoothing=0.1,num_iters=5) # TODO label_smoothing=0.0
         #tf.logging.info("per_example_loss:"+str(per_example_loss.shape))
         ##############bi_tempered_logistic_loss#############################################################################
-
         Loss+=loss
         Probabilities.append(probabilities)
   return (sequence_output,output_layer,Loss, Probabilities)
@@ -969,6 +969,7 @@ def get_model(max_seq_length, L, D_map, batch_size=64, is_training=True,use_foca
         y = tf.placeholder(tf.int64, [batch_size, ], name="input-y-" + str(i))
         Y.append(y)
     num_labels = [len(D_map[k]) for k in L]
+    print(input,Y)
     sequence_output,output_layer,Loss, Predict= create_model(bert_config, is_training, input, input_mask, segment_ids,
                  Y, num_labels, use_one_hot_embeddings=False,use_focal=use_focal,D_alpha=D_alpha)
     Acc = 0
@@ -1079,7 +1080,7 @@ def main():
     D_alpha0 = json.load(open(path_alpha, 'r'))
     D_alpha = {k: [D_alpha0[k][kk] for kk in D_map[k]] for k in D_map}
     tokenizer = Tokenizer(path_vocab)
-    input,input_mask,segment_ids, Y, Loss, Acc, train_op, Predict = get_model(max_seq_length, L, D_map, batch_size=None, is_training=is_training,use_focal=True,D_alpha=D_alpha[L[0]])
+    input,input_mask,segment_ids, Y, Loss, Acc, train_op, Predict = get_model(max_seq_length, L, D_map, batch_size=FLAGS.train_batch_size, is_training=is_training,use_focal=True,D_alpha=D_alpha[L[0]])
     saver = tf.train.Saver(max_to_keep=None)
     session = tf.Session()
     global_step = tf.train.get_or_create_global_step()

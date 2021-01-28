@@ -159,8 +159,8 @@ nohup python -u sentEmb_s2v.py $gpu $path_data $path_target $tag >> log/sent-$ta
 
 
 
-File=Docs
-gpu=2
+File=Queries0121
+gpu=3
 tag=allScenePre48-weightedmean-finetune
 path_data="/search/odin/guobk/vpa/vpa-studio-research/retrieval/data/$File.json"
 path_target="/search/odin/guobk/vpa/vpa-studio-research/retrieval/data/$File-$tag.json"
@@ -184,3 +184,25 @@ path_idf='data_allScene_pretrain/IDF.json'
 max_seqlen=48
 nohup python -u sentEmb.py $gpu $path_data $path_target $init_checkpoint $bert_config_file $vocab_file $max_seqlen $tag $path_idf >> log/sent-$tag-$File.log 2>&1 &
 
+########AI writer encoding############
+gpu=3
+tag=allScenePre48-weightedmean-finetune
+path_data="/search/odin/guobk/vpa/AiWriter/DataAll/D_s2v_bert.json"
+path_target="/search/odin/guobk/vpa/AiWriter/DataAll/D_s2v_bert.json"
+init_checkpoint='model/bert_allScene48/ckpt_finetune/model.ckpt'
+bert_config_file='model/bert_allScene48/bert_config.json'
+vocab_file='model/bert_allScene48/vocab.txt'
+path_idf='data_allScene_pretrain/IDF.json'
+max_seqlen=48
+nohup python -u sentEmb.py $gpu $path_data $path_target $init_checkpoint $bert_config_file $vocab_file $max_seqlen $tag $path_idf >> log/sent-$tag-aiwrite.log 2>&1 &
+
+gpu=3
+tag="allScenePre48-weightedmean-finetune"
+path_data="/search/odin/guobk/vpa/AiWriter/DataAll/D_s2v_bert.json"
+path_target="/search/odin/guobk/vpa/AiWriter/DataAll/D_s2v_bert.json"
+init_checkpoint='Data_AiWriter/model1/ckpt/model.ckpt-159000'
+bert_config_file="Data_AiWriter/model1/bert_config.json"
+vocab_file='model/bert_allScene48/vocab.txt'
+path_idf='data_allScene_pretrain/IDF.json'
+max_seqlen=128
+nohup python -u sentEmb.py $gpu $path_data $path_target $init_checkpoint $bert_config_file $vocab_file $max_seqlen $tag $path_idf >> log/sent-$tag-aiwrite.log 2>&1 &
