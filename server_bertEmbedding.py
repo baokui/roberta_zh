@@ -42,10 +42,10 @@ init_vars = tf.train.list_variables(init_checkpoint)
 print("tarvs",tvars)
 print("init_vars",init_vars)
 print("assignment_map",assignment_map)
+
+tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
 sess = tf.Session()
 sess.run(tf.global_variables_initializer())
-tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
-
 @app.route('/api/bertEmb', methods=['POST'])
 def test1():
     r = request.json
@@ -79,6 +79,33 @@ def test1():
     response_pickled = json.dumps(response)
     return Response(response=response_pickled, status=200, mimetype="application/json")
 
+def demo():
+    output = {'lastTokenDense':output_layer0,'lastToken':sequence_output[:, 0, :],'sequence_vector':sequence_output}
+    T = []
+    inputStr = '新年快乐'
+    with open(path_data,'r') as f:
+        D = json.load(f)
+    for i in range(491875,len(D)):
+        inputStr = D[i]['content']
+        text_a = inputStr
+        example = InputExample(guid='guid', text_a=text_a, label='0')
+        feature = convert_single_example(10, example, label_list, max_seq_length, tokenizer)
+        feed_dict = {input_ids: [feature.input_ids], segment_ids: [feature.segment_ids],
+                     input_mask: [feature.input_mask]}
+        v0 = sess.run(sequence_output, feed_dict=feed_dict)[0]
+        v = []
+        for j in range(min(len(inputStr), max_seq_length - 1)):
+            if inputStr[j] not in IDF:
+                w = IDF['UNK']
+            else:
+                w = IDF[inputStr[j]]
+            v.append(w * v0[j + 1])
+        v = np.sum(np.array(v),axis=0)
+        v = v/(1e-8+np.sqrt(v.dot(v)))
+        D[i]['bert_sent2vec'] = [np.float(t) for t in list(v)]
+        if i%100==0:
+            print(i,len(D))
+
 if __name__ != '__main__':
     gunicorn_logger = logging.getLogger('gunicorn.error')
     app.logger.handlers = gunicorn_logger.handlers
@@ -88,29 +115,6 @@ if __name__ == "__main__":
     server = WSGIServer(("0.0.0.0", port), app)
     print("Server started")
     server.serve_forever()
-# output = {'lastTokenDense':output_layer0,'lastToken':sequence_output[:, 0, :],'sequence_vector':sequence_output}
-# T = []
-# inputStr = '新年快乐'
-# with open(path_data,'r') as f:
-#     D = json.load(f)
-# for i in range(491875,len(D)):
-#     inputStr = D[i]['content']
-#     text_a = inputStr
-#     example = InputExample(guid='guid', text_a=text_a, label='0')
-#     feature = convert_single_example(10, example, label_list, max_seq_length, tokenizer)
-#     feed_dict = {input_ids: [feature.input_ids], segment_ids: [feature.segment_ids],
-#                  input_mask: [feature.input_mask]}
-#     v0 = sess.run(sequence_output, feed_dict=feed_dict)[0]
-#     v = []
-#     for j in range(min(len(inputStr), max_seq_length - 1)):
-#         if inputStr[j] not in IDF:
-#             w = IDF['UNK']
-#         else:
-#             w = IDF[inputStr[j]]
-#         v.append(w * v0[j + 1])
-#     v = np.sum(np.array(v),axis=0)
-#     v = v/(1e-8+np.sqrt(v.dot(v)))
-#     D[i]['bert_sent2vec'] = [np.float(t) for t in list(v)]
-#     if i%100==0:
-#         print(i,len(D))
+
+
 #
