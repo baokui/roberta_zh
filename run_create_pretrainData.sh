@@ -117,3 +117,39 @@ nohup python -u create_pretraining_data.py \
   --masked_lm_prob=0.1  \
   --random_seed=12345  \
   --dupe_factor=5 >> log/create-pretrain-Aiwriter1.log 2>&1 &
+
+#!!!!!! inputfile里的内容必须是\n\n分割！！！！！！！！！！！！
+inputfile="/search/odin/guobk/data/labels/data_new/pretrainData/raw.txt"
+mkdir /search/odin/guobk/data/labels/data_new/pretrainData/tfrecord
+outputfile="/search/odin/guobk/data/labels/data_new/pretrainData/tfrecord/raw.tfrecord"
+nohup python -u create_pretraining_data.py \
+  --do_whole_word_mask=True \
+  --input_file=$inputfile \
+  --output_file=$outputfile \
+  --vocab_file=/search/odin/guobk/data/labels/data_new/model_pretrain/vocab.txt \
+  --do_lower_case=True \
+  --max_seq_length=32 \
+  --min_seg_length=10 \
+  --max_predictions_per_seq=4 \
+  --masked_lm_prob=0.1  \
+  --random_seed=12345  \
+  --dupe_factor=5 >> log/create-pretrain-labels-classify.log 2>&1 &
+
+###########################################################
+# 素材推荐预训练
+#!!!!!! inputfile里的内容必须是\n\n分割！！！！！！！！！！！！
+inputfile="/search/odin/guobk/data/AiWriter/Content/data/pretrain/train.txt"
+mkdir /search/odin/guobk/data/AiWriter/Content/data/pretrain/tfrecord
+outputfile=/search/odin/guobk/data/AiWriter/Content/data/pretrain/tfrecord/train.tfrecord
+nohup python -u create_pretraining_data.py \
+  --do_whole_word_mask=True \
+  --input_file=$inputfile \
+  --output_file=$outputfile \
+  --vocab_file=/search/odin/guobk/data/AiWriter/Content/data/pretrain/vocab.txt \
+  --do_lower_case=True \
+  --max_seq_length=128 \
+  --min_seg_length=10 \
+  --max_predictions_per_seq=4 \
+  --masked_lm_prob=0.1  \
+  --random_seed=12345  \
+  --dupe_factor=5 >> log/create-pretrain-aiwriter-new.log 2>&1 &

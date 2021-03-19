@@ -277,3 +277,52 @@ nohup python -u run_pretraining.py --input_file=$files  \
 --train_batch_size=16 --max_seq_length=$max_seq_length --max_predictions_per_seq=4 \
 --num_train_steps=2000000 --num_warmup_steps=10000 --learning_rate=1e-4  --tpu_name=123  \
 --save_checkpoints_steps=3000 --init_checkpoint=$init_checkpoint >> log/pretrain-AiWriter1.log 2>&1 &
+
+#########################################################################3
+# 标签模型预训练训练（句库提供）
+BERT_BASE_DIR=/search/odin/guobk/data/labels/data_new/model_pretrain
+my_new_model_path=$BERT_BASE_DIR/ckpt/
+mkdir -p $my_new_model_path
+max_seq_length=32
+export CUDA_VISIBLE_DEVICES="0"
+files=/search/odin/guobk/data/labels/data_new/pretrainData/tfrecord/raw.tfrecord
+init_checkpoint=model/roberta_zh_L-6-H-768_A-12/bert_model.ckpt
+nohup python -u run_pretraining.py \
+  --input_file=$files  \
+  --output_dir=$my_new_model_path \
+  --do_train=True \
+  --do_eval=True \
+  --bert_config_file=$BERT_BASE_DIR/bert_config.json \
+  --train_batch_size=16 \
+  --max_seq_length=$max_seq_length \
+  --max_predictions_per_seq=4 \
+  --num_train_steps=2000000 \
+  --num_warmup_steps=10000 \
+  --learning_rate=1e-4  \
+  --tpu_name=123  \
+  --save_checkpoints_steps=3000 \
+  --init_checkpoint=$init_checkpoint >> log/pretrain-labels.log 2>&1 &
+#########################################################################3
+# 素材推荐-素材预训练
+BERT_BASE_DIR=/search/odin/guobk/data/AiWriter/Content/data/pretrain/
+my_new_model_path=$BERT_BASE_DIR/ckpt/
+mkdir -p $my_new_model_path
+max_seq_length=128
+export CUDA_VISIBLE_DEVICES="0"
+files=/search/odin/guobk/data/AiWriter/Content/data/pretrain/tfrecord/train.tfrecord
+init_checkpoint=model/roberta_zh_L-6-H-768_A-12/bert_model.ckpt
+nohup python -u run_pretraining.py \
+  --input_file=$files  \
+  --output_dir=$my_new_model_path \
+  --do_train=True \
+  --do_eval=True \
+  --bert_config_file=$BERT_BASE_DIR/bert_config.json \
+  --train_batch_size=16 \
+  --max_seq_length=$max_seq_length \
+  --max_predictions_per_seq=4 \
+  --num_train_steps=2000000 \
+  --num_warmup_steps=10000 \
+  --learning_rate=1e-4  \
+  --tpu_name=123  \
+  --save_checkpoints_steps=3000 \
+  --init_checkpoint=$init_checkpoint >> log/pretrain-AiWriter-new.log 2>&1 &

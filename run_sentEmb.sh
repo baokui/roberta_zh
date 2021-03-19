@@ -206,3 +206,31 @@ vocab_file='model/bert_allScene48/vocab.txt'
 path_idf='data_allScene_pretrain/IDF.json'
 max_seqlen=128
 nohup python -u sentEmb.py $gpu $path_data $path_target $init_checkpoint $bert_config_file $vocab_file $max_seqlen $tag $path_idf >> log/sent-$tag-aiwrite.log 2>&1 &
+
+
+gpu=3
+tag=allScenePre48-weightedmean-finetune
+path_data="/search/odin/guobk/vpa/vpa-studio-research/retrieval/data/test_s2v/Queries023_bertpre.json"
+path_target="/search/odin/guobk/vpa/vpa-studio-research/retrieval/data/test_s2v/Queries023_bertpre.json"
+init_checkpoint='model/bert_allScene48/ckpt_finetune/model.ckpt'
+bert_config_file='model/bert_allScene48/bert_config.json'
+vocab_file='model/bert_allScene48/vocab.txt'
+path_idf='data_allScene_pretrain/IDF.json'
+max_seqlen=48
+nohup python -u sentEmb.py $gpu $path_data $path_target $init_checkpoint $bert_config_file $vocab_file $max_seqlen $tag $path_idf >> log/sent-$tag-aiwrite.log 2>&1 &
+
+####################
+# AiWriter-new data
+for((gpu=1;gpu<5;gpu++))
+do
+  echo $gpu
+tag="ai_pretrain"
+path_data="/search/odin/guobk/data/AiWriter/Content/data/raw1-washed-dedup7-s2v-$gpu.json"
+path_target="/search/odin/guobk/data/AiWriter/Content/data/raw1-washed-dedup7-s2v-$gpu.json"
+init_checkpoint='/search/odin/guobk/data/AiWriter/Content/data/pretrain/ckpt/model.ckpt-147000'
+bert_config_file='/search/odin/guobk/data/AiWriter/Content/data/pretrain/bert_config.json'
+vocab_file='/search/odin/guobk/data/AiWriter/Content/data/pretrain/vocab.txt'
+path_idf='/search/odin/guobk/data/AiWriter/Content/data/IDF_char.json'
+max_seqlen=128
+nohup python -u sentEmb.py $gpu $path_data $path_target $init_checkpoint $bert_config_file $vocab_file $max_seqlen $tag $path_idf >> log/sent-$tag-aiwrite-newpre-$gpu.log 2>&1 &
+done

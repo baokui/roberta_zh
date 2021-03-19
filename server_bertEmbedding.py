@@ -45,7 +45,7 @@ print("assignment_map",assignment_map)
 
 tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
 sess = tf.Session()
-sess.run(tf.global_variables_initializer())
+sess.run(tf.global_variables_initializer()) # 使用init_from_checkpoint加载模型，要把tf.global_variables_initializer() 放后面，而使用restore要放前面，这个不知道为啥
 @app.route('/api/bertEmb', methods=['POST'])
 def test1():
     r = request.json
