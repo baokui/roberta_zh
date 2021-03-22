@@ -221,7 +221,7 @@ nohup python -u sentEmb.py $gpu $path_data $path_target $init_checkpoint $bert_c
 
 ####################
 # AiWriter-new data
-for((gpu=1;gpu<5;gpu++))
+for((gpu=1;gpu<6;gpu++))
 do
   echo $gpu
 tag="ai_pretrain"
@@ -232,5 +232,5 @@ bert_config_file='/search/odin/guobk/data/AiWriter/Content/data/pretrain/bert_co
 vocab_file='/search/odin/guobk/data/AiWriter/Content/data/pretrain/vocab.txt'
 path_idf='/search/odin/guobk/data/AiWriter/Content/data/IDF_char.json'
 max_seqlen=128
-nohup python -u sentEmb.py $gpu $path_data $path_target $init_checkpoint $bert_config_file $vocab_file $max_seqlen $tag $path_idf >> log/sent-$tag-aiwrite-newpre-$gpu.log 2>&1 &
+nohup python -u sentEmb.py $gpu $path_data $path_target $init_checkpoint $bert_config_file $vocab_file $max_seqlen $tag $path_idf >> log/aiwriteSentEmb-$gpu.log 2>&1 &
 done
