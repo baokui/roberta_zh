@@ -32,15 +32,13 @@ def sentEmbing(D,init_checkpoint,bert_config_file,vocab_file,max_seqlen,tag,IDF)
     return D0
 def main(path_data,path_target,init_checkpoint,bert_config_file,vocab_file,max_seqlen,tag,IDF):
     D = json.load(open(path_data, 'r', encoding='utf-8'))
-    D1 = []
     i0 = 10000
     while i0<len(D):
-        print('process:',i0,len(D1))
+        print('process:',i0)
         i1 = i0+10000
         D0 = sentEmbing(D[i0:i1],init_checkpoint,bert_config_file,vocab_file,max_seqlen,tag,IDF)
-        D1.extend(D0)
         with open(path_target.replace('vector','vector-'+str(i0)),'w',encoding='utf-8') as f:
-            json.dump(D1,f,ensure_ascii=False,indent=4)
+            json.dump(D0,f,ensure_ascii=False,indent=4)
         i0 = i1
 if __name__=='__main__':
     path_data, path_target, init_checkpoint, bert_config_file, vocab_file, max_seqlen, tag, path_idf = sys.argv[2:]
