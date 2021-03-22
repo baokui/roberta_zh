@@ -226,7 +226,7 @@ do
   echo $gpu
 tag="ai_pretrain"
 path_data="/search/odin/guobk/data/AiWriter/Content/data/raw1-washed-dedup7-s2v-$gpu.json"
-path_target="/search/odin/guobk/data/AiWriter/Content/data/raw1-washed-dedup7-s2v-$gpu.json"
+path_target="/search/odin/guobk/data/AiWriter/Content/data/raw1-washed-dedup7-s2v-$gpu-vector.json"
 init_checkpoint='/search/odin/guobk/data/AiWriter/Content/data/pretrain/ckpt/model.ckpt-147000'
 bert_config_file='/search/odin/guobk/data/AiWriter/Content/data/pretrain/bert_config.json'
 vocab_file='/search/odin/guobk/data/AiWriter/Content/data/pretrain/vocab.txt'

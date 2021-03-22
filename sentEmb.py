@@ -41,6 +41,7 @@ def main(path_data,path_target,init_checkpoint,bert_config_file,vocab_file,max_s
         D1.extend(D0)
         with open(path_target,'w',encoding='utf-8') as f:
             json.dump(D1,f,ensure_ascii=False,indent=4)
+        i0 = i1
 if __name__=='__main__':
     path_data, path_target, init_checkpoint, bert_config_file, vocab_file, max_seqlen, tag, path_idf = sys.argv[2:]
     max_seqlen = int(max_seqlen)
