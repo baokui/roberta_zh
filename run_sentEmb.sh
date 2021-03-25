@@ -234,3 +234,14 @@ path_idf='/search/odin/guobk/data/AiWriter/Content/data/IDF_char.json'
 max_seqlen=128
 nohup python -u sentEmb.py $gpu $path_data $path_target $init_checkpoint $bert_config_file $vocab_file $max_seqlen $tag $path_idf >> log/aiwriteSentEmb-$gpu.log 2>&1 &
 done
+
+tag="ai_pretrain"
+gpu=7
+path_data="/search/odin/guobk/data/AiWriter/Content/data/sent2vec/test.json"
+path_target="/search/odin/guobk/data/AiWriter/Content/data/sent2vec/test.json"
+init_checkpoint='/search/odin/guobk/data/AiWriter/Content/data/pretrain/ckpt/model.ckpt-147000'
+bert_config_file='/search/odin/guobk/data/AiWriter/Content/data/pretrain/bert_config.json'
+vocab_file='/search/odin/guobk/data/AiWriter/Content/data/pretrain/vocab.txt'
+path_idf='/search/odin/guobk/data/AiWriter/Content/data/IDF_char.json'
+max_seqlen=128
+nohup python -u sentEmb.py $gpu $path_data $path_target $init_checkpoint $bert_config_file $vocab_file $max_seqlen $tag $path_idf >> log/aiwriteSentEmb-test.log 2>&1 &
